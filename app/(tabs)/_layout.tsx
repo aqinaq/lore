@@ -18,6 +18,7 @@ export default function TabLayout() {
         name="stream"
         options={{
           title: 'Stream',
+          headerShown: false,
           tabBarIcon: ({ color }) => (
             <SymbolView
               name={{ ios: 'antenna.radiowaves.left.and.right', android: 'wifi', web: 'wifi' }}

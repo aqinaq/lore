@@ -4,6 +4,7 @@ import {
   ScrollView, RefreshControl, ActivityIndicator, Image, Modal,
   StatusBar, Pressable, TextInput,
 } from 'react-native';
+import { SafeAreaView } from 'react-native-safe-area-context';
 import { router, useFocusEffect } from 'expo-router';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
 import { useVideoPlayer, VideoView } from 'expo-video';
@@ -478,36 +479,41 @@ export default function StreamScreen() {
   }
 
   return (
-    <View style={styles.container}>
-      {/* Circle tabs */}
-      <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        style={styles.circleRowOuter}
-        contentContainerStyle={styles.circleRow}>
-        {circles.map(c => {
-          const on = activeCircle?.id === c.id;
-          return (
-            <TouchableOpacity
-              key={c.id}
-              style={[styles.circleTab, on && styles.circleTabOn]}
-              onPress={() => setActiveCircle(c)}
-              onLongPress={() => router.push(`/circle/${c.id}`)}>
-              {!!(c as any).avatar_url && (
-                <Image source={{ uri: (c as any).avatar_url }} style={styles.circleTabAvatar} />
-              )}
-              <Text style={[styles.circleTabText, on && styles.circleTabTextOn]}>
-                {c.name}
-              </Text>
-            </TouchableOpacity>
-          );
-        })}
-        <TouchableOpacity
-          style={styles.addCircleBtn}
-          onPress={() => router.push('/circle/new')}>
-          <Text style={styles.addCircleBtnText}>+</Text>
-        </TouchableOpacity>
-      </ScrollView>
+    <SafeAreaView style={styles.container}>
+      {/* Sticky header: title row + circle tabs in one block */}
+      <View style={styles.stickyHeader}>
+        <View style={styles.titleRow}>
+          <Text style={styles.screenTitle}>Stream</Text>
+        </View>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          style={styles.circleRowOuter}
+          contentContainerStyle={styles.circleRow}>
+          {circles.map(c => {
+            const on = activeCircle?.id === c.id;
+            return (
+              <TouchableOpacity
+                key={c.id}
+                style={[styles.circleTab, on && styles.circleTabOn]}
+                onPress={() => setActiveCircle(c)}
+                onLongPress={() => router.push(`/circle/${c.id}`)}>
+                {!!(c as any).avatar_url && (
+                  <Image source={{ uri: (c as any).avatar_url }} style={styles.circleTabAvatar} />
+                )}
+                <Text style={[styles.circleTabText, on && styles.circleTabTextOn]}>
+                  {c.name}
+                </Text>
+              </TouchableOpacity>
+            );
+          })}
+          <TouchableOpacity
+            style={styles.addCircleBtn}
+            onPress={() => router.push('/circle/new')}>
+            <Text style={styles.addCircleBtnText}>+</Text>
+          </TouchableOpacity>
+        </ScrollView>
+      </View>
 
       {/* Active circle name bar → settings */}
       {activeCircle && (
@@ -545,7 +551,7 @@ export default function StreamScreen() {
           <Text style={styles.fabText}>+</Text>
         </TouchableOpacity>
       )}
-    </View>
+    </SafeAreaView>
   );
 }
 
@@ -568,12 +574,13 @@ const styles = StyleSheet.create({
   },
   btnOutlineText: { fontSize: 16, fontWeight: '500' },
 
+  // Sticky header block
+  stickyHeader: { backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#ebebeb' },
+  titleRow: { paddingHorizontal: 16, paddingTop: 12, paddingBottom: 4 },
+  screenTitle: { fontSize: 22, fontWeight: '700' },
+
   // Circle tabs
-  circleRowOuter: {
-    height: 56, flexShrink: 0,
-    backgroundColor: '#fff',
-    borderBottomWidth: 1, borderBottomColor: '#ebebeb',
-  },
+  circleRowOuter: { height: 48, flexShrink: 0 },
   circleRow: { paddingHorizontal: 16, gap: 8, alignItems: 'center', flexGrow: 1 },
   circleTab: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
