@@ -26,7 +26,7 @@ type Reply = {
 };
 
 const CARD_WIDTH  = Dimensions.get('window').width - 32;
-const MEDIA_SIZE  = CARD_WIDTH - 0; // full card width
+const MEDIA_WIDTH = CARD_WIDTH - 20; // inset 10px each side
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -81,13 +81,13 @@ function PhotoContent({ drop }: { drop: Drop }) {
     }
   }, [drop.content_url]);
   if (!drop.content_url) return null;
-  const h = ratio ? Math.min(CARD_WIDTH / ratio, 240) : 140;
+  const h = ratio ? Math.min(MEDIA_WIDTH / ratio, 240) : 140;
   return (
     <>
       <TouchableOpacity onPress={() => setFs(true)} activeOpacity={0.95}>
         <Image
           source={{ uri: drop.content_url }}
-          style={{ width: CARD_WIDTH, height: h, backgroundColor: '#f0f0f0' }}
+          style={[styles.mediaInset, { height: h }]}
           resizeMode="cover"
         />
       </TouchableOpacity>
@@ -109,7 +109,7 @@ function VideoContent({ drop }: { drop: Drop }) {
           setFs(true);
         }}
         activeOpacity={0.95}>
-        <View style={styles.mediaSquare}>
+        <View style={styles.mediaInset}>
           <VideoView
             player={player}
             style={StyleSheet.absoluteFill}
@@ -175,13 +175,13 @@ function DrawingContent({ drop }: { drop: Drop }) {
     }
   }, [drop.content_url]);
   if (!drop.content_url) return null;
-  const h = ratio ? Math.min(CARD_WIDTH / ratio, 240) : 140;
+  const h = ratio ? Math.min(MEDIA_WIDTH / ratio, 240) : 140;
   return (
     <>
       <TouchableOpacity onPress={() => setFs(true)} activeOpacity={0.95}>
         <Image
           source={{ uri: drop.content_url }}
-          style={{ width: CARD_WIDTH, height: h, backgroundColor: '#fafafa' }}
+          style={[styles.mediaInset, { height: h, backgroundColor: '#fafafa' }]}
           resizeMode="cover"
         />
       </TouchableOpacity>
@@ -632,11 +632,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 10,
   },
 
-  // Media: full-width, compact height
-  mediaSquare: {
-    width: CARD_WIDTH,
+  // Media: inset with margin + rounded corners
+  mediaInset: {
+    width: MEDIA_WIDTH,
     height: 150,
+    marginHorizontal: 10,
+    marginBottom: 8,
+    borderRadius: 12,
     backgroundColor: '#f0f0f0',
+    overflow: 'hidden',
   },
 
   // Video overlay
