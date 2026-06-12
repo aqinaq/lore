@@ -96,7 +96,8 @@ export default function CircleSettingsScreen() {
   }
 
   async function renameCircle() {
-    if (!newName.trim() || !circle) return;
+    if (!newName.trim() || !circle) { setRenaming(false); return; }
+    if (newName.trim() === circle.name) { setRenaming(false); return; }
     setSavingName(true);
     const { data } = await supabase.from('circles')
       .update({ name: newName.trim() })
@@ -141,7 +142,32 @@ export default function CircleSettingsScreen() {
           <Avatar uri={circle.avatar_url} name={circle.name} size={88} />
           {isAdmin && <View style={styles.editBadge}><Text style={styles.editBadgeText}>✏️</Text></View>}
         </TouchableOpacity>
-        <Text style={styles.circleName}>{circle.name}</Text>
+
+        {renaming ? (
+          <TextInput
+            style={styles.circleNameInput}
+            value={newName}
+            onChangeText={setNewName}
+            autoFocus
+            selectTextOnFocus
+            returnKeyType="done"
+            onSubmitEditing={renameCircle}
+            onBlur={renameCircle}
+            textAlign="center"
+          />
+        ) : (
+          <View style={styles.circleNameRow}>
+            <Text style={styles.circleName}>{circle.name}</Text>
+            {isAdmin && (
+              <TouchableOpacity
+                onPress={() => { setNewName(circle.name); setRenaming(true); }}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                <Text style={styles.namePencil}>✏️</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         <Text style={styles.memberCount}>{circle.member_count} member{circle.member_count !== 1 ? 's' : ''}</Text>
       </View>
 
@@ -180,44 +206,6 @@ export default function CircleSettingsScreen() {
                 ? <Text style={styles.descText}>{circle.description}</Text>
                 : <Text style={styles.descPlaceholder}>Tap to add a description…</Text>
               }
-            </TouchableOpacity>
-          )}
-        </View>
-      )}
-
-      {/* Admin: rename */}
-      {isAdmin && (
-        <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Circle name</Text>
-          {renaming ? (
-            <View style={styles.editBlock}>
-              <TextInput
-                style={styles.nameInput}
-                value={newName}
-                onChangeText={setNewName}
-                autoFocus
-                returnKeyType="done"
-                onSubmitEditing={renameCircle}
-                placeholder={circle.name}
-                placeholderTextColor="#bbb"
-              />
-              <View style={styles.editActions}>
-                <TouchableOpacity
-                  style={[styles.actionBtn, savingName && styles.actionBtnDisabled]}
-                  onPress={renameCircle}
-                  disabled={savingName}>
-                  <Text style={styles.actionBtnText}>Save</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setRenaming(false)}>
-                  <Text style={styles.cancelText}>Cancel</Text>
-                </TouchableOpacity>
-              </View>
-            </View>
-          ) : (
-            <TouchableOpacity
-              style={styles.renameBtn}
-              onPress={() => { setNewName(circle.name); setRenaming(true); }}>
-              <Text style={styles.renameBtnText}>Rename circle</Text>
             </TouchableOpacity>
           )}
         </View>
@@ -280,7 +268,14 @@ const styles = StyleSheet.create({
     borderWidth: 1, borderColor: '#eee',
   },
   editBadgeText: { fontSize: 12 },
-  circleName:  { fontSize: 24, fontWeight: '700' },
+  circleNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
+  circleName:    { fontSize: 24, fontWeight: '700' },
+  namePencil:    { fontSize: 16, opacity: 0.5 },
+  circleNameInput: {
+    fontSize: 24, fontWeight: '700', textAlign: 'center',
+    borderBottomWidth: 1.5, borderBottomColor: '#000',
+    paddingVertical: 2, minWidth: 120,
+  },
   memberCount: { fontSize: 14, color: '#888' },
 
   section:      { paddingHorizontal: 20, paddingVertical: 16, borderTopWidth: 1, borderTopColor: '#f0f0f0' },
@@ -296,19 +291,6 @@ const styles = StyleSheet.create({
     fontSize: 15, color: '#111', lineHeight: 22,
     borderWidth: 1, borderColor: '#ddd', borderRadius: 10,
     padding: 12, minHeight: 80, textAlignVertical: 'top',
-  },
-
-  // Rename
-  renameBtn: {
-    alignSelf: 'flex-start',
-    borderWidth: 1.5, borderColor: '#000', borderRadius: 10,
-    paddingHorizontal: 16, paddingVertical: 10,
-  },
-  renameBtnText: { fontSize: 15, fontWeight: '600', color: '#000' },
-  nameInput: {
-    fontSize: 17, fontWeight: '600', color: '#111',
-    borderWidth: 1, borderColor: '#ddd', borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10,
   },
 
   // Shared edit UI
