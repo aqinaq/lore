@@ -81,13 +81,13 @@ function PhotoContent({ drop }: { drop: Drop }) {
     }
   }, [drop.content_url]);
   if (!drop.content_url) return null;
-  const h = ratio ? Math.min(MEDIA_WIDTH / ratio, 240) : 140;
+  const h = ratio ? Math.min(CARD_WIDTH / ratio, 240) : 140;
   return (
     <>
       <TouchableOpacity onPress={() => setFs(true)} activeOpacity={0.95}>
         <Image
           source={{ uri: drop.content_url }}
-          style={[styles.mediaInset, { height: h }]}
+          style={{ width: CARD_WIDTH, height: h, backgroundColor: '#f0f0f0' }}
           resizeMode="cover"
         />
       </TouchableOpacity>
@@ -109,7 +109,7 @@ function VideoContent({ drop }: { drop: Drop }) {
           setFs(true);
         }}
         activeOpacity={0.95}>
-        <View style={styles.mediaInset}>
+        <View style={styles.mediaSquare}>
           <VideoView
             player={player}
             style={StyleSheet.absoluteFill}
@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  cardDrawing: { aspectRatio: 1 },
+  cardDrawing: { width: '72%', aspectRatio: 1, alignSelf: 'flex-start' },
   drawingSpacer: { flex: 1 },
   authorRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -623,13 +623,10 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14, paddingVertical: 10,
   },
 
-  // Media: inset with margin + rounded corners
-  mediaInset: {
-    width: MEDIA_WIDTH,
-    height: 150,
-    marginHorizontal: 10,
-    marginBottom: 8,
-    borderRadius: 12,
+  // Video: full-bleed fixed height
+  mediaSquare: {
+    width: CARD_WIDTH,
+    height: 200,
     backgroundColor: '#f0f0f0',
     overflow: 'hidden',
   },
