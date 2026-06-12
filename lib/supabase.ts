@@ -47,6 +47,7 @@ export interface Database {
           id: string;
           name: string;
           avatar_url: string | null;
+          description: string | null;
           invite_code: string;
           invite_expires: string;
           created_by: string;
@@ -57,6 +58,7 @@ export interface Database {
           id?: string;
           name: string;
           avatar_url?: string | null;
+          description?: string | null;
           invite_code: string;
           invite_expires: string;
           created_by: string;
@@ -67,6 +69,7 @@ export interface Database {
           id?: string;
           name?: string;
           avatar_url?: string | null;
+          description?: string | null;
           invite_code?: string;
           invite_expires?: string;
           created_by?: string;

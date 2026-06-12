@@ -1,0 +1,1 @@
+ALTER TABLE circles ADD COLUMN IF NOT EXISTS description TEXT;
