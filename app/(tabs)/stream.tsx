@@ -75,6 +75,11 @@ function FullscreenImage({ uri, visible, onClose }: {
 function PhotoContent({ drop }: { drop: Drop }) {
   const [fs, setFs] = useState(false);
   const [ratio, setRatio] = useState<number | null>(null);
+  useEffect(() => {
+    if (drop.content_url) {
+      Image.getSize(drop.content_url, (w, h) => { if (w && h) setRatio(w / h); });
+    }
+  }, [drop.content_url]);
   if (!drop.content_url) return null;
   const h = ratio ? Math.min(CARD_WIDTH / ratio, 200) : 160;
   return (
@@ -84,10 +89,6 @@ function PhotoContent({ drop }: { drop: Drop }) {
           source={{ uri: drop.content_url }}
           style={{ width: CARD_WIDTH, height: h, backgroundColor: '#f0f0f0' }}
           resizeMode="cover"
-          onLoad={e => {
-            const { width, height } = e.nativeEvent.source;
-            if (width && height) setRatio(width / height);
-          }}
         />
       </TouchableOpacity>
       <FullscreenImage uri={drop.content_url} visible={fs} onClose={() => setFs(false)} />
@@ -168,6 +169,11 @@ function VoiceContent({ drop }: { drop: Drop }) {
 function DrawingContent({ drop }: { drop: Drop }) {
   const [fs, setFs] = useState(false);
   const [ratio, setRatio] = useState<number | null>(null);
+  useEffect(() => {
+    if (drop.content_url) {
+      Image.getSize(drop.content_url, (w, h) => { if (w && h) setRatio(w / h); });
+    }
+  }, [drop.content_url]);
   if (!drop.content_url) return null;
   const h = ratio ? Math.min(CARD_WIDTH / ratio, 200) : 160;
   return (
@@ -177,10 +183,6 @@ function DrawingContent({ drop }: { drop: Drop }) {
           source={{ uri: drop.content_url }}
           style={{ width: CARD_WIDTH, height: h, backgroundColor: '#fafafa' }}
           resizeMode="cover"
-          onLoad={e => {
-            const { width, height } = e.nativeEvent.source;
-            if (width && height) setRatio(width / height);
-          }}
         />
       </TouchableOpacity>
       <FullscreenImage uri={drop.content_url} visible={fs} onClose={() => setFs(false)} />
