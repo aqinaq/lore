@@ -74,14 +74,20 @@ function FullscreenImage({ uri, visible, onClose }: {
 
 function PhotoContent({ drop }: { drop: Drop }) {
   const [fs, setFs] = useState(false);
+  const [ratio, setRatio] = useState<number | null>(null);
   if (!drop.content_url) return null;
+  const h = ratio ? Math.min(CARD_WIDTH / ratio, 200) : 160;
   return (
     <>
       <TouchableOpacity onPress={() => setFs(true)} activeOpacity={0.95}>
         <Image
           source={{ uri: drop.content_url }}
-          style={styles.mediaSquare}
+          style={{ width: CARD_WIDTH, height: h, backgroundColor: '#f0f0f0' }}
           resizeMode="cover"
+          onLoad={e => {
+            const { width, height } = e.nativeEvent.source;
+            if (width && height) setRatio(width / height);
+          }}
         />
       </TouchableOpacity>
       <FullscreenImage uri={drop.content_url} visible={fs} onClose={() => setFs(false)} />
@@ -161,14 +167,20 @@ function VoiceContent({ drop }: { drop: Drop }) {
 
 function DrawingContent({ drop }: { drop: Drop }) {
   const [fs, setFs] = useState(false);
+  const [ratio, setRatio] = useState<number | null>(null);
   if (!drop.content_url) return null;
+  const h = ratio ? Math.min(CARD_WIDTH / ratio, 200) : 160;
   return (
     <>
       <TouchableOpacity onPress={() => setFs(true)} activeOpacity={0.95}>
         <Image
           source={{ uri: drop.content_url }}
-          style={[styles.mediaSquare, { backgroundColor: '#fafafa' }]}
+          style={{ width: CARD_WIDTH, height: h, backgroundColor: '#fafafa' }}
           resizeMode="cover"
+          onLoad={e => {
+            const { width, height } = e.nativeEvent.source;
+            if (width && height) setRatio(width / height);
+          }}
         />
       </TouchableOpacity>
       <FullscreenImage uri={drop.content_url} visible={fs} onClose={() => setFs(false)} />
@@ -210,9 +222,8 @@ function DropCard({ drop, myId }: { drop: Drop; myId: string }) {
   const name = drop.author?.display_name ?? '?';
   const { reactions, react } = useReactions(drop.id, myId, drop.reactions ?? []);
   const [showPicker,     setShowPicker]     = useState(false);
-  const [pickerAnchorY,  setPickerAnchorY]  = useState<number | undefined>(undefined);
+  const [pickerAnchorY,  setPickerAnchorY]  = useState(0);
   const [replyExpanded,  setReplyExpanded]  = useState(false);
-  const cardRef = useRef<View>(null);
   const [replies,        setReplies]        = useState<Reply[]>([]);
   const [replyText,      setReplyText]      = useState('');
   const [sending,        setSending]        = useState(false);
@@ -264,13 +275,10 @@ function DropCard({ drop, myId }: { drop: Drop; myId: string }) {
 
   return (
     <Pressable
-      ref={cardRef}
       style={styles.card}
-      onLongPress={() => {
-        cardRef.current?.measure((_x, _y, _w, _h, _px, pageY) => {
-          setPickerAnchorY(pageY);
-          setShowPicker(true);
-        });
+      onLongPress={(e) => {
+        setPickerAnchorY(e.nativeEvent.pageY);
+        setShowPicker(true);
       }}
       delayLongPress={400}>
 

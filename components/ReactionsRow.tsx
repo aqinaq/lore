@@ -50,7 +50,7 @@ export function EmojiPicker({ onSelect, onClose, anchorY }: {
   anchorY?: number;
 }) {
   const top = anchorY != null
-    ? Math.max(56, anchorY - 70)
+    ? Math.max(56, anchorY - 56)
     : SCREEN_H * 0.38;
 
   return (
@@ -115,7 +115,7 @@ const s = StyleSheet.create({
   chipCount:     { fontSize: 13, fontWeight: '600', color: '#555' },
   chipCountMine: { color: '#2563eb' },
 
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.38)' },
+  overlay: { flex: 1 },
   pill: {
     position: 'absolute', left: 20, right: 20,
     flexDirection: 'row', justifyContent: 'space-evenly',
