@@ -210,7 +210,9 @@ function DropCard({ drop, myId }: { drop: Drop; myId: string }) {
   const name = drop.author?.display_name ?? '?';
   const { reactions, react } = useReactions(drop.id, myId, drop.reactions ?? []);
   const [showPicker,     setShowPicker]     = useState(false);
+  const [pickerAnchorY,  setPickerAnchorY]  = useState<number | undefined>(undefined);
   const [replyExpanded,  setReplyExpanded]  = useState(false);
+  const cardRef = useRef<View>(null);
   const [replies,        setReplies]        = useState<Reply[]>([]);
   const [replyText,      setReplyText]      = useState('');
   const [sending,        setSending]        = useState(false);
@@ -262,8 +264,14 @@ function DropCard({ drop, myId }: { drop: Drop; myId: string }) {
 
   return (
     <Pressable
+      ref={cardRef}
       style={styles.card}
-      onLongPress={() => setShowPicker(true)}
+      onLongPress={() => {
+        cardRef.current?.measure((_x, _y, _w, _h, _px, pageY) => {
+          setPickerAnchorY(pageY);
+          setShowPicker(true);
+        });
+      }}
       delayLongPress={400}>
 
       {/* Author row */}
@@ -344,6 +352,7 @@ function DropCard({ drop, myId }: { drop: Drop; myId: string }) {
 
       {showPicker && (
         <EmojiPicker
+          anchorY={pickerAnchorY}
           onSelect={e => { react(e); setShowPicker(false); }}
           onClose={() => setShowPicker(false)}
         />

@@ -1,10 +1,13 @@
 import { useState } from 'react';
-import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, Modal, Pressable, Dimensions } from 'react-native';
 import { supabase } from '@/lib/supabase';
 
 export type Reaction = { emoji: string; user_id: string };
 
 export const REACTION_PRESETS = ['❤️', '😂', '🔥', '😮', '😢', '👏', '🥳', '💯', '😍', '👀', '🙌', '✨'];
+
+const QUICK_REACTIONS = ['❤️', '😂', '🔥', '😮', '😢', '👏', '🥳'];
+const SCREEN_H = Dimensions.get('window').height;
 
 // ─── Hook — owns state + upsert/delete logic ──────────────────────────────────
 
@@ -39,24 +42,26 @@ export function useReactions(dropId: string, myId: string, initial: Reaction[]) 
   return { reactions, react };
 }
 
-// ─── Emoji picker modal ───────────────────────────────────────────────────────
+// ─── Telegram-style floating emoji pill ──────────────────────────────────────
 
-export function EmojiPicker({ onSelect, onClose }: {
+export function EmojiPicker({ onSelect, onClose, anchorY }: {
   onSelect(emoji: string): void;
   onClose(): void;
+  anchorY?: number;
 }) {
+  const top = anchorY != null
+    ? Math.max(56, anchorY - 70)
+    : SCREEN_H * 0.38;
+
   return (
     <Modal transparent animationType="fade" onRequestClose={onClose}>
       <Pressable style={s.overlay} onPress={onClose}>
-        <Pressable style={s.panel} onPress={() => {}}>
-          <Text style={s.panelHint}>React to this drop</Text>
-          <View style={s.grid}>
-            {REACTION_PRESETS.map(e => (
-              <TouchableOpacity key={e} style={s.emojiBtn} onPress={() => onSelect(e)}>
-                <Text style={s.emoji}>{e}</Text>
-              </TouchableOpacity>
-            ))}
-          </View>
+        <Pressable style={[s.pill, { top }]} onPress={() => {}}>
+          {QUICK_REACTIONS.map(e => (
+            <TouchableOpacity key={e} style={s.emojiBtn} onPress={() => onSelect(e)}>
+              <Text style={s.emoji}>{e}</Text>
+            </TouchableOpacity>
+          ))}
         </Pressable>
       </Pressable>
     </Modal>
@@ -110,13 +115,15 @@ const s = StyleSheet.create({
   chipCount:     { fontSize: 13, fontWeight: '600', color: '#555' },
   chipCountMine: { color: '#2563eb' },
 
-  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.45)', justifyContent: 'center', alignItems: 'center' },
-  panel: {
-    backgroundColor: '#fff', borderRadius: 22, padding: 20, width: 300, gap: 14,
-    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 20, elevation: 10,
+  overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.38)' },
+  pill: {
+    position: 'absolute', left: 16, right: 16,
+    flexDirection: 'row', justifyContent: 'space-around',
+    backgroundColor: '#fff', borderRadius: 50,
+    paddingHorizontal: 4, paddingVertical: 6,
+    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18,
+    shadowOffset: { width: 0, height: 4 }, elevation: 14,
   },
-  panelHint: { fontSize: 13, color: '#aaa', fontWeight: '500', textAlign: 'center' },
-  grid:      { flexDirection: 'row', flexWrap: 'wrap', justifyContent: 'center', gap: 4 },
-  emojiBtn:  { width: 54, height: 54, alignItems: 'center', justifyContent: 'center', borderRadius: 14 },
-  emoji:     { fontSize: 30 },
+  emojiBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
+  emoji:    { fontSize: 30 },
 });
