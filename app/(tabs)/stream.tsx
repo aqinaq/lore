@@ -203,7 +203,6 @@ function DropCard({ drop, myId }: { drop: Drop; myId: string }) {
   const { reactions, react } = useReactions(drop.id, myId, drop.reactions ?? []);
   const [showPicker,     setShowPicker]     = useState(false);
   const [pickerAnchorY,  setPickerAnchorY]  = useState(0);
-  const [drawingFs,      setDrawingFs]      = useState(false);
   const [replyExpanded,  setReplyExpanded]  = useState(false);
   const [replies,        setReplies]        = useState<Reply[]>([]);
   const [replyText,      setReplyText]      = useState('');
@@ -265,14 +264,11 @@ function DropCard({ drop, myId }: { drop: Drop; myId: string }) {
 
       {/* Drawing: full-bleed background image */}
       {isDrawing && drop.content_url && (
-        <>
-          <Image
-            source={{ uri: drop.content_url }}
-            style={StyleSheet.absoluteFill}
-            resizeMode="cover"
-          />
-          <FullscreenImage uri={drop.content_url} visible={drawingFs} onClose={() => setDrawingFs(false)} />
-        </>
+        <Image
+          source={{ uri: drop.content_url }}
+          style={StyleSheet.absoluteFill}
+          resizeMode="cover"
+        />
       )}
 
       {/* Author row */}
@@ -291,14 +287,8 @@ function DropCard({ drop, myId }: { drop: Drop; myId: string }) {
       {drop.type === 'video' && <VideoContent drop={drop} />}
       {drop.type === 'voice' && <VoiceContent drop={drop} />}
 
-      {/* Drawing: tappable spacer fills the canvas area */}
-      {isDrawing && (
-        <TouchableOpacity
-          style={styles.drawingSpacer}
-          onPress={() => setDrawingFs(true)}
-          activeOpacity={1}
-        />
-      )}
+      {/* Drawing: spacer fills the canvas area */}
+      {isDrawing && <View style={styles.drawingSpacer} />}
 
       {/* Caption under media */}
       {drop.type !== 'text' && drop.type !== 'drawing' && !!drop.caption && (
@@ -614,8 +604,8 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  cardDrawing: { minHeight: 300 },
-  drawingSpacer: { flex: 1, minHeight: 180 },
+  cardDrawing: { height: CARD_WIDTH },
+  drawingSpacer: { flex: 1 },
   authorRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10,
