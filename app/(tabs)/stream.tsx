@@ -569,7 +569,11 @@ const styles = StyleSheet.create({
   btnOutlineText: { fontSize: 16, fontWeight: '500' },
 
   // Circle tabs
-  circleRowOuter: { height: 56, flexShrink: 0 },
+  circleRowOuter: {
+    height: 56, flexShrink: 0,
+    backgroundColor: '#fff',
+    borderBottomWidth: 1, borderBottomColor: '#ebebeb',
+  },
   circleRow: { paddingHorizontal: 16, gap: 8, alignItems: 'center', flexGrow: 1 },
   circleTab: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
@@ -589,7 +593,7 @@ const styles = StyleSheet.create({
   circleBar: {
     flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between',
     paddingHorizontal: 16, paddingVertical: 8,
-    backgroundColor: '#fff', borderBottomWidth: 1, borderBottomColor: '#ebebeb',
+    backgroundColor: '#fff', borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#ddd',
   },
   circleBarName:    { fontSize: 15, fontWeight: '600' },
   circleBarChevron: { fontSize: 20, color: '#aaa' },
