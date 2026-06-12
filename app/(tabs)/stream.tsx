@@ -25,8 +25,8 @@ type Reply = {
   author: { display_name: string; avatar_url?: string | null } | null;
 };
 
-const CARD_WIDTH  = Dimensions.get('window').width - 32;
-const MEDIA_WIDTH = CARD_WIDTH - 20; // inset 10px each side
+const MAX_CARD    = 390;
+const CARD_WIDTH  = Math.min(Dimensions.get('window').width - 32, MAX_CARD);
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -601,10 +601,11 @@ const styles = StyleSheet.create({
   // Drop card
   card: {
     backgroundColor: '#fff', borderRadius: 18, overflow: 'hidden',
+    maxWidth: MAX_CARD,
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  cardDrawing: { width: '72%', aspectRatio: 1, alignSelf: 'flex-start' },
+  cardDrawing: { width: CARD_WIDTH * 0.72, aspectRatio: 1, alignSelf: 'flex-start' },
   drawingSpacer: { flex: 1 },
   authorRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
