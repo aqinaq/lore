@@ -81,7 +81,7 @@ function PhotoContent({ drop }: { drop: Drop }) {
     }
   }, [drop.content_url]);
   if (!drop.content_url) return null;
-  const h = ratio ? Math.min(CARD_WIDTH / ratio, CARD_WIDTH) : 160;
+  const h = ratio ? Math.min(CARD_WIDTH / ratio, 240) : 140;
   return (
     <>
       <TouchableOpacity onPress={() => setFs(true)} activeOpacity={0.95}>
@@ -175,7 +175,7 @@ function DrawingContent({ drop }: { drop: Drop }) {
     }
   }, [drop.content_url]);
   if (!drop.content_url) return null;
-  const h = ratio ? Math.min(CARD_WIDTH / ratio, CARD_WIDTH) : 160;
+  const h = ratio ? Math.min(CARD_WIDTH / ratio, 240) : 140;
   return (
     <>
       <TouchableOpacity onPress={() => setFs(true)} activeOpacity={0.95}>
