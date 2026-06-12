@@ -625,7 +625,7 @@ const styles = StyleSheet.create({
   // Media: full-width, compact height
   mediaSquare: {
     width: CARD_WIDTH,
-    height: 220,
+    height: 150,
     backgroundColor: '#f0f0f0',
   },
 

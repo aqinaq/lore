@@ -117,13 +117,13 @@ const s = StyleSheet.create({
 
   overlay: { flex: 1, backgroundColor: 'rgba(0,0,0,0.38)' },
   pill: {
-    position: 'absolute', left: 16, right: 16,
-    flexDirection: 'row', justifyContent: 'space-around',
-    backgroundColor: '#fff', borderRadius: 50,
-    paddingHorizontal: 4, paddingVertical: 6,
-    shadowColor: '#000', shadowOpacity: 0.2, shadowRadius: 18,
-    shadowOffset: { width: 0, height: 4 }, elevation: 14,
+    position: 'absolute', left: 20, right: 20,
+    flexDirection: 'row', justifyContent: 'space-evenly',
+    backgroundColor: '#fff', borderRadius: 40,
+    paddingHorizontal: 6, paddingVertical: 4,
+    shadowColor: '#000', shadowOpacity: 0.18, shadowRadius: 12,
+    shadowOffset: { width: 0, height: 3 }, elevation: 10,
   },
-  emojiBtn: { width: 44, height: 44, alignItems: 'center', justifyContent: 'center' },
-  emoji:    { fontSize: 30 },
+  emojiBtn: { width: 34, height: 34, alignItems: 'center', justifyContent: 'center' },
+  emoji:    { fontSize: 22 },
 });
