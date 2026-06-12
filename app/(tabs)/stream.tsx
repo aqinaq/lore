@@ -166,29 +166,6 @@ function VoiceContent({ drop }: { drop: Drop }) {
   );
 }
 
-function DrawingContent({ drop }: { drop: Drop }) {
-  const [fs, setFs] = useState(false);
-  const [ratio, setRatio] = useState<number | null>(null);
-  useEffect(() => {
-    if (drop.content_url) {
-      Image.getSize(drop.content_url, (w, h) => { if (w && h) setRatio(w / h); });
-    }
-  }, [drop.content_url]);
-  if (!drop.content_url) return null;
-  const h = ratio ? Math.min(MEDIA_WIDTH / ratio, 240) : 140;
-  return (
-    <>
-      <TouchableOpacity onPress={() => setFs(true)} activeOpacity={0.95}>
-        <Image
-          source={{ uri: drop.content_url }}
-          style={[styles.mediaInset, { height: h, backgroundColor: '#fafafa' }]}
-          resizeMode="cover"
-        />
-      </TouchableOpacity>
-      <FullscreenImage uri={drop.content_url} visible={fs} onClose={() => setFs(false)} />
-    </>
-  );
-}
 
 // ─── Inline reactions row (no padding, fits in footer) ───────────────────────
 
@@ -222,9 +199,11 @@ function InlineReactionsRow({ reactions, myId, onReact }: {
 
 function DropCard({ drop, myId }: { drop: Drop; myId: string }) {
   const name = drop.author?.display_name ?? '?';
+  const isDrawing = drop.type === 'drawing';
   const { reactions, react } = useReactions(drop.id, myId, drop.reactions ?? []);
   const [showPicker,     setShowPicker]     = useState(false);
   const [pickerAnchorY,  setPickerAnchorY]  = useState(0);
+  const [drawingFs,      setDrawingFs]      = useState(false);
   const [replyExpanded,  setReplyExpanded]  = useState(false);
   const [replies,        setReplies]        = useState<Reply[]>([]);
   const [replyText,      setReplyText]      = useState('');
@@ -277,12 +256,24 @@ function DropCard({ drop, myId }: { drop: Drop; myId: string }) {
 
   return (
     <Pressable
-      style={styles.card}
+      style={[styles.card, isDrawing && styles.cardDrawing]}
       onLongPress={(e) => {
         setPickerAnchorY(e.nativeEvent.pageY);
         setShowPicker(true);
       }}
       delayLongPress={400}>
+
+      {/* Drawing: full-bleed background image */}
+      {isDrawing && drop.content_url && (
+        <>
+          <Image
+            source={{ uri: drop.content_url }}
+            style={StyleSheet.absoluteFill}
+            resizeMode="cover"
+          />
+          <FullscreenImage uri={drop.content_url} visible={drawingFs} onClose={() => setDrawingFs(false)} />
+        </>
+      )}
 
       {/* Author row */}
       <View style={styles.authorRow}>
@@ -295,14 +286,22 @@ function DropCard({ drop, myId }: { drop: Drop; myId: string }) {
       </View>
 
       {/* Content */}
-      {drop.type === 'text'    && <Text style={styles.textContent}>{drop.caption}</Text>}
-      {drop.type === 'photo'   && <PhotoContent   drop={drop} />}
-      {drop.type === 'video'   && <VideoContent   drop={drop} />}
-      {drop.type === 'voice'   && <VoiceContent   drop={drop} />}
-      {drop.type === 'drawing' && <DrawingContent drop={drop} />}
+      {drop.type === 'text'  && <Text style={styles.textContent}>{drop.caption}</Text>}
+      {drop.type === 'photo' && <PhotoContent drop={drop} />}
+      {drop.type === 'video' && <VideoContent drop={drop} />}
+      {drop.type === 'voice' && <VoiceContent drop={drop} />}
+
+      {/* Drawing: tappable spacer fills the canvas area */}
+      {isDrawing && (
+        <TouchableOpacity
+          style={styles.drawingSpacer}
+          onPress={() => setDrawingFs(true)}
+          activeOpacity={1}
+        />
+      )}
 
       {/* Caption under media */}
-      {drop.type !== 'text' && !!drop.caption && (
+      {drop.type !== 'text' && drop.type !== 'drawing' && !!drop.caption && (
         <Text style={styles.mediaCaption}>{drop.caption}</Text>
       )}
 
@@ -615,6 +614,8 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
+  cardDrawing: { minHeight: 300 },
+  drawingSpacer: { flex: 1, minHeight: 180 },
   authorRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10,
