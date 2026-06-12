@@ -2,7 +2,7 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import {
   View, Text, FlatList, TouchableOpacity, StyleSheet,
   ScrollView, RefreshControl, ActivityIndicator, Image, Modal,
-  Dimensions, StatusBar, Pressable, TextInput,
+  StatusBar, Pressable, TextInput,
 } from 'react-native';
 import { router, useFocusEffect } from 'expo-router';
 import { useAudioPlayer, useAudioPlayerStatus } from 'expo-audio';
@@ -25,8 +25,7 @@ type Reply = {
   author: { display_name: string; avatar_url?: string | null } | null;
 };
 
-const MAX_CARD    = 390;
-const CARD_WIDTH  = Math.min(Dimensions.get('window').width - 32, MAX_CARD);
+const MAX_CARD = 390;
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
@@ -81,13 +80,12 @@ function PhotoContent({ drop }: { drop: Drop }) {
     }
   }, [drop.content_url]);
   if (!drop.content_url) return null;
-  const h = ratio ? Math.min(CARD_WIDTH / ratio, 240) : 140;
   return (
     <>
       <TouchableOpacity onPress={() => setFs(true)} activeOpacity={0.95}>
         <Image
           source={{ uri: drop.content_url }}
-          style={{ width: CARD_WIDTH, height: h, backgroundColor: '#f0f0f0' }}
+          style={{ width: '100%', aspectRatio: ratio ?? 4 / 3, backgroundColor: '#f0f0f0' }}
           resizeMode="cover"
         />
       </TouchableOpacity>
@@ -605,7 +603,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  cardDrawing: { width: CARD_WIDTH * 0.72, aspectRatio: 1, alignSelf: 'flex-start' },
+  cardDrawing: { width: '72%', aspectRatio: 1, alignSelf: 'flex-start' },
   drawingSpacer: { flex: 1 },
   authorRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
@@ -626,8 +624,8 @@ const styles = StyleSheet.create({
 
   // Video: full-bleed fixed height
   mediaSquare: {
-    width: CARD_WIDTH,
-    height: 200,
+    width: '100%',
+    aspectRatio: 16 / 9,
     backgroundColor: '#f0f0f0',
     overflow: 'hidden',
   },
