@@ -483,6 +483,7 @@ export default function StreamScreen() {
       <ScrollView
         horizontal
         showsHorizontalScrollIndicator={false}
+        style={styles.circleRowOuter}
         contentContainerStyle={styles.circleRow}>
         {circles.map(c => {
           const on = activeCircle?.id === c.id;
@@ -568,7 +569,8 @@ const styles = StyleSheet.create({
   btnOutlineText: { fontSize: 16, fontWeight: '500' },
 
   // Circle tabs
-  circleRow: { paddingHorizontal: 16, paddingVertical: 10, gap: 8, alignItems: 'center' },
+  circleRowOuter: { height: 56, flexShrink: 0 },
+  circleRow: { paddingHorizontal: 16, gap: 8, alignItems: 'center', flexGrow: 1 },
   circleTab: {
     flexDirection: 'row', alignItems: 'center', gap: 6,
     paddingHorizontal: 14, paddingVertical: 7,
