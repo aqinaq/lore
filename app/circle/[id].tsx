@@ -1,13 +1,14 @@
 import { useEffect, useState } from 'react';
 import {
-  View, Text, FlatList, TouchableOpacity, StyleSheet,
-  ActivityIndicator, ScrollView, Image, TextInput,
+  View, Text, TouchableOpacity, StyleSheet, Modal, Pressable,
+  ActivityIndicator, ScrollView, Image, TextInput, Platform,
 } from 'react-native';
 import * as Clipboard from 'expo-clipboard';
 import * as ImagePicker from 'expo-image-picker';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase, Database } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
+import { SafeAreaView } from 'react-native-safe-area-context';
 
 type Circle = Database['public']['Tables']['circles']['Row'];
 type Member = Database['public']['Tables']['circle_members']['Row'] & {
@@ -32,6 +33,10 @@ export default function CircleSettingsScreen() {
   const [isAdmin,      setIsAdmin]      = useState(false);
   const [loading,      setLoading]      = useState(true);
   const [copied,       setCopied]       = useState(false);
+
+  // Avatar menu
+  const [avatarMenu,   setAvatarMenu]   = useState(false);
+  const [avatarFull,   setAvatarFull]   = useState(false);
 
   // Rename state
   const [renaming,     setRenaming]     = useState(false);
@@ -79,11 +84,13 @@ export default function CircleSettingsScreen() {
     if (data) setCircle(data as Circle);
   }
 
-  async function changeAvatar() {
+  async function pickAvatar() {
+    setAvatarMenu(false);
+    if (!circle) return;
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ['images'], allowsEditing: true, aspect: [1, 1], quality: 0.7,
     });
-    if (result.canceled || !circle) return;
+    if (result.canceled) return;
     const uri  = result.assets[0].uri;
     const ext  = uri.split('.').pop() ?? 'jpg';
     const path = `${session!.user.id}/${circle.id}.${ext}`;
@@ -91,6 +98,14 @@ export default function CircleSettingsScreen() {
     await supabase.storage.from('avatars').upload(path, blob, { upsert: true });
     const { data: { publicUrl } } = supabase.storage.from('avatars').getPublicUrl(path);
     const { data } = await supabase.from('circles').update({ avatar_url: publicUrl })
+      .eq('id', id).select().single();
+    if (data) setCircle(data as Circle);
+  }
+
+  async function deleteAvatar() {
+    setAvatarMenu(false);
+    if (!circle) return;
+    const { data } = await supabase.from('circles').update({ avatar_url: null })
       .eq('id', id).select().single();
     if (data) setCircle(data as Circle);
   }
@@ -128,129 +143,185 @@ export default function CircleSettingsScreen() {
   if (!circle)  return <View style={styles.center}><Text>Circle not found.</Text></View>;
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      {/* Header */}
-      <View style={styles.header}>
-        <TouchableOpacity onPress={() => router.back()}>
-          <Text style={styles.back}>← Back</Text>
-        </TouchableOpacity>
-      </View>
+    <>
+      <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+        {/* Header */}
+        <View style={styles.header}>
+          <TouchableOpacity onPress={() => router.back()}>
+            <Text style={styles.back}>← Back</Text>
+          </TouchableOpacity>
+        </View>
 
-      {/* Avatar + name + member count */}
-      <View style={styles.heroSection}>
-        <TouchableOpacity onPress={isAdmin ? changeAvatar : undefined} style={styles.avatarWrap}>
-          <Avatar uri={circle.avatar_url} name={circle.name} size={88} />
-          {isAdmin && <View style={styles.editBadge}><Text style={styles.editBadgeText}>✏️</Text></View>}
-        </TouchableOpacity>
+        {/* Avatar + name + member count */}
+        <View style={styles.heroSection}>
+          <TouchableOpacity
+            style={styles.avatarWrap}
+            onPress={() => {
+              if (isAdmin) {
+                setAvatarMenu(true);
+              } else if (circle.avatar_url) {
+                setAvatarFull(true);
+              }
+            }}
+            activeOpacity={0.8}>
+            <Avatar uri={circle.avatar_url} name={circle.name} size={88} />
+          </TouchableOpacity>
 
-        {renaming ? (
-          <TextInput
-            style={styles.circleNameInput}
-            value={newName}
-            onChangeText={setNewName}
-            autoFocus
-            selectTextOnFocus
-            returnKeyType="done"
-            onSubmitEditing={renameCircle}
-            onBlur={renameCircle}
-            textAlign="center"
-          />
-        ) : (
-          <View style={styles.circleNameRow}>
-            <Text style={styles.circleName}>{circle.name}</Text>
-            {isAdmin && (
+          {renaming ? (
+            <TextInput
+              style={styles.circleNameInput}
+              value={newName}
+              onChangeText={setNewName}
+              autoFocus
+              selectTextOnFocus
+              returnKeyType="done"
+              onSubmitEditing={renameCircle}
+              onBlur={renameCircle}
+              textAlign="center"
+            />
+          ) : (
+            <View style={styles.circleNameRow}>
+              <Text style={styles.circleName}>{circle.name}</Text>
+              {isAdmin && (
+                <TouchableOpacity
+                  onPress={() => { setNewName(circle.name); setRenaming(true); }}
+                  hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+                  <Text style={styles.namePencil}>✏️</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          )}
+
+          <Text style={styles.memberCount}>{circle.member_count} member{circle.member_count !== 1 ? 's' : ''}</Text>
+        </View>
+
+        {/* Description */}
+        {(isAdmin || circle.description) && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>Description</Text>
+            {editingDesc ? (
+              <View style={styles.editBlock}>
+                <TextInput
+                  style={styles.descInput}
+                  value={newDesc}
+                  onChangeText={setNewDesc}
+                  multiline
+                  placeholder="What's this circle about?"
+                  placeholderTextColor="#bbb"
+                  autoFocus
+                />
+                <View style={styles.editActions}>
+                  <TouchableOpacity
+                    style={[styles.actionBtn, savingDesc && styles.actionBtnDisabled]}
+                    onPress={saveDescription}
+                    disabled={savingDesc}>
+                    <Text style={styles.actionBtnText}>Save</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity onPress={() => setEditingDesc(false)}>
+                    <Text style={styles.cancelText}>Cancel</Text>
+                  </TouchableOpacity>
+                </View>
+              </View>
+            ) : (
               <TouchableOpacity
-                onPress={() => { setNewName(circle.name); setRenaming(true); }}
-                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
-                <Text style={styles.namePencil}>✏️</Text>
+                onPress={isAdmin ? () => { setNewDesc(circle.description ?? ''); setEditingDesc(true); } : undefined}
+                activeOpacity={isAdmin ? 0.6 : 1}>
+                {circle.description
+                  ? <Text style={styles.descText}>{circle.description}</Text>
+                  : <Text style={styles.descPlaceholder}>Tap to add a description…</Text>
+                }
               </TouchableOpacity>
             )}
           </View>
         )}
 
-        <Text style={styles.memberCount}>{circle.member_count} member{circle.member_count !== 1 ? 's' : ''}</Text>
-      </View>
-
-      {/* Description */}
-      {(isAdmin || circle.description) && (
+        {/* Invite code */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Description</Text>
-          {editingDesc ? (
-            <View style={styles.editBlock}>
-              <TextInput
-                style={styles.descInput}
-                value={newDesc}
-                onChangeText={setNewDesc}
-                multiline
-                placeholder="What's this circle about?"
-                placeholderTextColor="#bbb"
-                autoFocus
-              />
-              <View style={styles.editActions}>
-                <TouchableOpacity
-                  style={[styles.actionBtn, savingDesc && styles.actionBtnDisabled]}
-                  onPress={saveDescription}
-                  disabled={savingDesc}>
-                  <Text style={styles.actionBtnText}>Save</Text>
-                </TouchableOpacity>
-                <TouchableOpacity onPress={() => setEditingDesc(false)}>
-                  <Text style={styles.cancelText}>Cancel</Text>
-                </TouchableOpacity>
+          <Text style={styles.sectionTitle}>Invite code</Text>
+          <View style={styles.codeRow}>
+            <Text style={styles.code}>{circle.invite_code}</Text>
+            <TouchableOpacity style={styles.codeBtn} onPress={copyCode}>
+              <Text style={styles.codeBtnText}>{copied ? '✓ Copied' : 'Copy'}</Text>
+            </TouchableOpacity>
+            {isAdmin && (
+              <TouchableOpacity style={[styles.codeBtn, styles.codeBtnSecondary]} onPress={regenerateCode}>
+                <Text style={styles.codeBtnTextSecondary}>Refresh</Text>
+              </TouchableOpacity>
+            )}
+          </View>
+          <Text style={styles.codeExpiry}>
+            Expires {new Date(circle.invite_expires).toLocaleDateString()}
+          </Text>
+        </View>
+
+        {/* Members */}
+        <View style={styles.section}>
+          <Text style={styles.sectionTitle}>Members</Text>
+          {members.map(m => (
+            <View key={m.user_id} style={styles.memberRow}>
+              <Avatar uri={m.user?.avatar_url} name={m.user?.display_name ?? '?'} size={40} />
+              <View style={styles.memberInfo}>
+                <Text style={styles.memberName}>{m.user?.display_name ?? 'Unknown'}</Text>
+                {m.role === 'admin' && <Text style={styles.adminBadge}>admin</Text>}
               </View>
             </View>
-          ) : (
-            <TouchableOpacity
-              onPress={isAdmin ? () => { setNewDesc(circle.description ?? ''); setEditingDesc(true); } : undefined}
-              activeOpacity={isAdmin ? 0.6 : 1}>
-              {circle.description
-                ? <Text style={styles.descText}>{circle.description}</Text>
-                : <Text style={styles.descPlaceholder}>Tap to add a description…</Text>
-              }
-            </TouchableOpacity>
-          )}
+          ))}
         </View>
-      )}
 
-      {/* Invite code */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Invite code</Text>
-        <View style={styles.codeRow}>
-          <Text style={styles.code}>{circle.invite_code}</Text>
-          <TouchableOpacity style={styles.codeBtn} onPress={copyCode}>
-            <Text style={styles.codeBtnText}>{copied ? '✓ Copied' : 'Copy'}</Text>
+        {/* Danger zone */}
+        <View style={styles.section}>
+          <TouchableOpacity style={styles.leaveBtn} onPress={leaveCircle}>
+            <Text style={styles.leaveBtnText}>Leave circle</Text>
           </TouchableOpacity>
-          {isAdmin && (
-            <TouchableOpacity style={[styles.codeBtn, styles.codeBtnSecondary]} onPress={regenerateCode}>
-              <Text style={styles.codeBtnTextSecondary}>Refresh</Text>
+        </View>
+      </ScrollView>
+
+      {/* Avatar action sheet */}
+      <Modal visible={avatarMenu} transparent animationType="fade" onRequestClose={() => setAvatarMenu(false)}>
+        <Pressable style={styles.sheetOverlay} onPress={() => setAvatarMenu(false)}>
+          <SafeAreaView edges={['bottom']} style={styles.sheetWrap}>
+            <Pressable>
+              <View style={styles.sheet}>
+                {circle.avatar_url && (
+                  <TouchableOpacity style={styles.sheetItem} onPress={() => { setAvatarMenu(false); setAvatarFull(true); }}>
+                    <Text style={styles.sheetItemText}>View photo</Text>
+                  </TouchableOpacity>
+                )}
+                <TouchableOpacity style={styles.sheetItem} onPress={pickAvatar}>
+                  <Text style={styles.sheetItemText}>Open library</Text>
+                </TouchableOpacity>
+                {circle.avatar_url && (
+                  <TouchableOpacity style={styles.sheetItem} onPress={deleteAvatar}>
+                    <Text style={[styles.sheetItemText, styles.sheetItemDanger]}>Delete photo</Text>
+                  </TouchableOpacity>
+                )}
+              </View>
+              <TouchableOpacity style={styles.sheetCancel} onPress={() => setAvatarMenu(false)}>
+                <Text style={styles.sheetCancelText}>Cancel</Text>
+              </TouchableOpacity>
+            </Pressable>
+          </SafeAreaView>
+        </Pressable>
+      </Modal>
+
+      {/* Full-screen avatar viewer */}
+      <Modal visible={avatarFull} transparent={false} animationType="fade" onRequestClose={() => setAvatarFull(false)}>
+        <View style={styles.fullscreenBg}>
+          <SafeAreaView edges={['top']} style={styles.fullscreenHeader}>
+            <TouchableOpacity onPress={() => setAvatarFull(false)} style={styles.fullscreenBack}>
+              <Text style={styles.fullscreenBackText}>← Back</Text>
             </TouchableOpacity>
+          </SafeAreaView>
+          {circle.avatar_url && (
+            <Image
+              source={{ uri: circle.avatar_url }}
+              style={styles.fullscreenImage}
+              resizeMode="contain"
+            />
           )}
         </View>
-        <Text style={styles.codeExpiry}>
-          Expires {new Date(circle.invite_expires).toLocaleDateString()}
-        </Text>
-      </View>
-
-      {/* Members */}
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Members</Text>
-        {members.map(m => (
-          <View key={m.user_id} style={styles.memberRow}>
-            <Avatar uri={m.user?.avatar_url} name={m.user?.display_name ?? '?'} size={40} />
-            <View style={styles.memberInfo}>
-              <Text style={styles.memberName}>{m.user?.display_name ?? 'Unknown'}</Text>
-              {m.role === 'admin' && <Text style={styles.adminBadge}>admin</Text>}
-            </View>
-          </View>
-        ))}
-      </View>
-
-      {/* Danger zone */}
-      <View style={styles.section}>
-        <TouchableOpacity style={styles.leaveBtn} onPress={leaveCircle}>
-          <Text style={styles.leaveBtnText}>Leave circle</Text>
-        </TouchableOpacity>
-      </View>
-    </ScrollView>
+      </Modal>
+    </>
   );
 }
 
@@ -262,12 +333,6 @@ const styles = StyleSheet.create({
   back:        { fontSize: 16, color: '#555' },
   heroSection: { alignItems: 'center', paddingVertical: 24, gap: 8 },
   avatarWrap:  { position: 'relative' },
-  editBadge: {
-    position: 'absolute', bottom: 0, right: 0,
-    backgroundColor: '#fff', borderRadius: 12, padding: 2,
-    borderWidth: 1, borderColor: '#eee',
-  },
-  editBadgeText: { fontSize: 12 },
   circleNameRow: { flexDirection: 'row', alignItems: 'center', gap: 6 },
   circleName:    { fontSize: 24, fontWeight: '700' },
   namePencil:    { fontSize: 16, opacity: 0.5 },
@@ -329,4 +394,32 @@ const styles = StyleSheet.create({
   // Leave
   leaveBtn:     { borderWidth: 1.5, borderColor: '#e53e3e', borderRadius: 12, paddingVertical: 14, alignItems: 'center' },
   leaveBtnText: { color: '#e53e3e', fontSize: 16, fontWeight: '600' },
+
+  // Avatar action sheet
+  sheetOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.4)',
+    justifyContent: 'flex-end',
+  },
+  sheetWrap:  { paddingHorizontal: 12, paddingBottom: 8 },
+  sheet: {
+    backgroundColor: '#fff', borderRadius: 14, overflow: 'hidden', marginBottom: 8,
+  },
+  sheetItem: {
+    paddingVertical: 16, paddingHorizontal: 20,
+    borderBottomWidth: StyleSheet.hairlineWidth, borderBottomColor: '#e0e0e0',
+  },
+  sheetItemText:   { fontSize: 17, textAlign: 'center', color: '#000' },
+  sheetItemDanger: { color: '#e53e3e' },
+  sheetCancel: {
+    backgroundColor: '#fff', borderRadius: 14,
+    paddingVertical: 16,
+  },
+  sheetCancelText: { fontSize: 17, fontWeight: '600', textAlign: 'center', color: '#000' },
+
+  // Full-screen viewer
+  fullscreenBg:     { flex: 1, backgroundColor: '#000', justifyContent: 'center' },
+  fullscreenHeader: { position: 'absolute', top: 0, left: 0, right: 0, zIndex: 10 },
+  fullscreenBack:   { paddingHorizontal: 20, paddingVertical: 12 },
+  fullscreenBackText: { color: '#fff', fontSize: 16 },
+  fullscreenImage:  { width: '100%', height: '100%' },
 });
