@@ -604,7 +604,7 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  cardDrawing: { aspectRatio: 1, marginHorizontal: 24 },
+  cardDrawing: { aspectRatio: 1 },
   drawingSpacer: { flex: 1 },
   authorRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
