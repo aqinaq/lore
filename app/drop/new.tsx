@@ -21,78 +21,7 @@ type DropType = Database['public']['Tables']['drops']['Row']['type'];
 
 const CANVAS_SIZE = Dimensions.get('window').width - 40;
 
-// ─── Photo ────────────────────────────────────────────────────────────────────
-
-function PhotoPanel({
-  uri, onCamera, onLibrary,
-}: { uri: string | null; onCamera: () => void; onLibrary: () => void }) {
-  if (uri) {
-    return (
-      <View>
-        <TouchableOpacity style={styles.mediaBox} onPress={onCamera} activeOpacity={0.9}>
-          <Image source={{ uri }} style={styles.mediaFill} resizeMode="cover" />
-          <View style={styles.retakeBadge}>
-            <Text style={styles.retakeBadgeText}>📷 Retake</Text>
-          </View>
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.libraryLink} onPress={onLibrary}>
-          <Text style={styles.libraryLinkText}>Choose from library instead</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-  return (
-    <View>
-      <TouchableOpacity style={styles.mediaBox} onPress={onCamera} activeOpacity={0.85}>
-        <EmptyMediaHint icon="📷" label="Tap to take a photo" />
-      </TouchableOpacity>
-      <TouchableOpacity style={styles.libraryLink} onPress={onLibrary}>
-        <Text style={styles.libraryLinkText}>Choose from library instead</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-// ─── Video ────────────────────────────────────────────────────────────────────
-
-function VideoPanel({ uri, onLibrary, onCamera }: {
-  uri: string | null;
-  onLibrary: () => void;
-  onCamera: () => void;
-}) {
-  const player = useVideoPlayer(uri, p => { p.loop = true; p.muted = false; });
-
-  if (!uri) {
-    return (
-      <View>
-        <TouchableOpacity style={styles.mediaBox} onPress={onCamera} activeOpacity={0.85}>
-          <EmptyMediaHint icon="🎬" label="Tap to record a video" />
-        </TouchableOpacity>
-        <TouchableOpacity style={styles.libraryLink} onPress={onLibrary}>
-          <Text style={styles.libraryLinkText}>Choose from library instead</Text>
-        </TouchableOpacity>
-      </View>
-    );
-  }
-
-  return (
-    <View>
-      <View style={styles.mediaBox}>
-        <VideoView
-          player={player}
-          style={styles.mediaFill}
-          contentFit="cover"
-          nativeControls
-        />
-      </View>
-      <TouchableOpacity style={styles.libraryLink} onPress={onCamera}>
-        <Text style={styles.libraryLinkText}>Record again</Text>
-      </TouchableOpacity>
-    </View>
-  );
-}
-
-// ─── Voice ────────────────────────────────────────────────────────────────────
+// ─── Voice panel ──────────────────────────────────────────────────────────────
 
 function VoicePanel({
   recorded, onRecorded, onDiscard,
@@ -102,9 +31,8 @@ function VoicePanel({
   onDiscard: () => void;
 }) {
   const recorder = useAudioRecorder(RecordingPresets.HIGH_QUALITY);
-  const state    = useAudioRecorderState(recorder, 500); // only for timer display
+  const state    = useAudioRecorderState(recorder, 500);
 
-  // RAF-driven phase: increments continuously at ~60fps, tiny step per frame
   const [phase, setPhase] = useState(0);
   const rafRef      = useRef<number | null>(null);
   const lastTimeRef = useRef<number | null>(null);
@@ -114,7 +42,7 @@ function VoicePanel({
       const step = (now: number) => {
         const dt = lastTimeRef.current != null ? now - lastTimeRef.current : 0;
         lastTimeRef.current = now;
-        setPhase(p => p + dt * 0.003); // 3 radians/second → smooth scroll
+        setPhase(p => p + dt * 0.003);
         rafRef.current = requestAnimationFrame(step);
       };
       rafRef.current = requestAnimationFrame(step);
@@ -180,14 +108,13 @@ function VoicePanel({
   );
 }
 
-// ─── Drawing ──────────────────────────────────────────────────────────────────
+// ─── Drawing panel ────────────────────────────────────────────────────────────
 
 const COLORS  = ['#000000', '#e53e3e', '#3182ce', '#38a169', '#d69e2e', '#805ad5', '#ffffff'];
 const BRUSHES = [3, 6, 12];
 
 function DrawingPanel({ canvasRef }: { canvasRef: React.RefObject<View | null> }) {
   const [paths, setPaths] = useState<{ d: string; color: string; w: number }[]>([]);
-
   const colorRef = useRef('#000000');
   const brushRef = useRef(6);
   const liveD    = useRef('');
@@ -251,7 +178,6 @@ function DrawingPanel({ canvasRef }: { canvasRef: React.RefObject<View | null> }
           </TouchableOpacity>
         </View>
       </View>
-
       <View
         ref={canvasRef}
         style={styles.canvas}
@@ -272,24 +198,21 @@ function DrawingPanel({ canvasRef }: { canvasRef: React.RefObject<View | null> }
   );
 }
 
-// ─── Helpers ──────────────────────────────────────────────────────────────────
-
-function EmptyMediaHint({ icon, label }: { icon: string; label: string }) {
-  return (
-    <View style={styles.emptyMedia}>
-      <Text style={styles.emptyIcon}>{icon}</Text>
-      <Text style={styles.emptyLabel}>{label}</Text>
-    </View>
-  );
-}
-
 // ─── Main screen ──────────────────────────────────────────────────────────────
+
+const TITLES: Record<DropType, string> = {
+  text:    'Write a note',
+  photo:   'Take a photo',
+  video:   'Record a video',
+  voice:   'Record voice',
+  drawing: 'Draw something',
+};
 
 export default function NewDropScreen() {
   const { circleId, type: typeParam } = useLocalSearchParams<{ circleId: string; type: string }>();
-  const { session }  = useAuth();
+  const { session } = useAuth();
+  const type = (typeParam as DropType) || 'text';
 
-  const [type,     setType]     = useState<DropType>((typeParam as DropType) || 'text');
   const [caption,  setCaption]  = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [videoUri, setVideoUri] = useState<string | null>(null);
@@ -300,25 +223,18 @@ export default function NewDropScreen() {
 
   const canvasRef = useRef<View>(null);
 
+  // Auto-open camera for photo/video on mount
+  useEffect(() => {
+    if (type === 'photo') takePhoto();
+    if (type === 'video') recordVideo();
+  }, []);
+
   async function takePhoto() {
     const r = await ImagePicker.launchCameraAsync({
       mediaTypes: ['images'], allowsEditing: true, quality: 0.85,
     });
     if (!r.canceled) setPhotoUri(r.assets[0].uri);
-  }
-
-  async function pickPhotoLibrary() {
-    const r = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['images'], allowsEditing: true, quality: 0.85,
-    });
-    if (!r.canceled) setPhotoUri(r.assets[0].uri);
-  }
-
-  async function pickVideoLibrary() {
-    const r = await ImagePicker.launchImageLibraryAsync({
-      mediaTypes: ['videos'], videoMaxDuration: 60,
-    });
-    if (!r.canceled) setVideoUri(r.assets[0].uri);
+    else if (!photoUri) router.back(); // user cancelled with nothing selected
   }
 
   async function recordVideo() {
@@ -326,6 +242,7 @@ export default function NewDropScreen() {
       mediaTypes: ['videos'], videoMaxDuration: 60,
     });
     if (!r.canceled) setVideoUri(r.assets[0].uri);
+    else if (!videoUri) router.back();
   }
 
   async function uploadFile(uri: string, mime: string, ext: string): Promise<string | null> {
@@ -342,21 +259,20 @@ export default function NewDropScreen() {
     setError('');
     let contentUrl: string | null = null;
     const finalCaption = caption.trim() || null;
-
     setLoading(true);
     try {
       if (type === 'text') {
         if (!finalCaption) { setError('Write something first.'); setLoading(false); return; }
 
       } else if (type === 'photo') {
-        if (!photoUri) { setError('Pick a photo first.'); setLoading(false); return; }
+        if (!photoUri) { setError('Take a photo first.'); setLoading(false); return; }
         const raw = photoUri.split('?')[0];
         const ext = raw.split('.').pop()?.toLowerCase() ?? 'jpg';
         contentUrl = await uploadFile(photoUri, `image/${ext === 'jpg' ? 'jpeg' : ext}`, ext);
         if (!contentUrl) { setError('Upload failed, try again.'); setLoading(false); return; }
 
       } else if (type === 'video') {
-        if (!videoUri) { setError('Pick or record a video first.'); setLoading(false); return; }
+        if (!videoUri) { setError('Record a video first.'); setLoading(false); return; }
         const raw = videoUri.split('?')[0];
         const ext = raw.split('.').pop()?.toLowerCase() ?? 'mp4';
         const mime = ext === 'mov' ? 'video/quicktime' : 'video/mp4';
@@ -378,7 +294,6 @@ export default function NewDropScreen() {
         circle_id: circleId, author_id: session!.user.id,
         type, content_url: contentUrl, caption: finalCaption,
       });
-
       if (dbErr) { setError(dbErr.message); setLoading(false); return; }
       router.back();
     } catch (e: any) {
@@ -396,13 +311,7 @@ export default function NewDropScreen() {
     return false;
   };
 
-  const TYPES: { key: DropType; icon: string; label: string }[] = [
-    { key: 'text',    icon: '✏️',  label: 'Text'  },
-    { key: 'photo',   icon: '📷',  label: 'Photo' },
-    { key: 'video',   icon: '🎬',  label: 'Video' },
-    { key: 'voice',   icon: '🎙️',  label: 'Voice' },
-    { key: 'drawing', icon: '🖌️',  label: 'Draw'  },
-  ];
+  const videoPlayer = useVideoPlayer(videoUri, p => { p.loop = true; });
 
   return (
     <KeyboardAvoidingView
@@ -413,7 +322,7 @@ export default function NewDropScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Text style={styles.cancel}>Cancel</Text>
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>New drop</Text>
+        <Text style={styles.headerTitle}>{TITLES[type]}</Text>
         <TouchableOpacity onPress={post} disabled={loading || !canPost()}>
           {loading
             ? <ActivityIndicator size="small" />
@@ -422,26 +331,10 @@ export default function NewDropScreen() {
       </View>
 
       <ScrollView
-        horizontal
-        showsHorizontalScrollIndicator={false}
-        contentContainerStyle={styles.typeRow}>
-        {TYPES.map(t => (
-          <TouchableOpacity
-            key={t.key}
-            style={[styles.typeChip, type === t.key && styles.typeChipOn]}
-            onPress={() => { setType(t.key); setError(''); }}>
-            <Text style={styles.typeIcon}>{t.icon}</Text>
-            <Text style={[styles.typeLabel, type === t.key && styles.typeLabelOn]}>
-              {t.label}
-            </Text>
-          </TouchableOpacity>
-        ))}
-      </ScrollView>
-
-      <ScrollView
         contentContainerStyle={styles.body}
         keyboardShouldPersistTaps="handled">
 
+        {/* ── Text ── */}
         {type === 'text' && (
           <TextInput
             style={styles.textInput}
@@ -453,24 +346,58 @@ export default function NewDropScreen() {
           />
         )}
 
+        {/* ── Photo ── */}
         {type === 'photo' && (
           <>
-            <PhotoPanel uri={photoUri} onCamera={takePhoto} onLibrary={pickPhotoLibrary} />
+            {photoUri ? (
+              <TouchableOpacity style={styles.mediaBox} onPress={takePhoto} activeOpacity={0.9}>
+                <Image source={{ uri: photoUri }} style={styles.mediaFill} resizeMode="cover" />
+                <View style={styles.retakeBadge}>
+                  <Text style={styles.retakeBadgeText}>📷 Retake</Text>
+                </View>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity style={styles.mediaBox} onPress={takePhoto} activeOpacity={0.85}>
+                <View style={styles.emptyMedia}>
+                  <Text style={styles.emptyIcon}>📷</Text>
+                  <Text style={styles.emptyLabel}>Tap to open camera</Text>
+                </View>
+              </TouchableOpacity>
+            )}
             <CaptionInput value={caption} onChange={setCaption} />
           </>
         )}
 
+        {/* ── Video ── */}
         {type === 'video' && (
           <>
-            <VideoPanel
-              uri={videoUri}
-              onLibrary={pickVideoLibrary}
-              onCamera={recordVideo}
-            />
+            {videoUri ? (
+              <>
+                <View style={styles.mediaBox}>
+                  <VideoView
+                    player={videoPlayer}
+                    style={styles.mediaFill}
+                    contentFit="cover"
+                    nativeControls
+                  />
+                </View>
+                <TouchableOpacity style={styles.retakeLink} onPress={recordVideo}>
+                  <Text style={styles.retakeLinkText}>🎬 Record again</Text>
+                </TouchableOpacity>
+              </>
+            ) : (
+              <TouchableOpacity style={styles.mediaBox} onPress={recordVideo} activeOpacity={0.85}>
+                <View style={styles.emptyMedia}>
+                  <Text style={styles.emptyIcon}>🎬</Text>
+                  <Text style={styles.emptyLabel}>Tap to open camera</Text>
+                </View>
+              </TouchableOpacity>
+            )}
             {videoUri && <CaptionInput value={caption} onChange={setCaption} />}
           </>
         )}
 
+        {/* ── Voice ── */}
         {type === 'voice' && (
           <>
             <VoicePanel
@@ -482,6 +409,7 @@ export default function NewDropScreen() {
           </>
         )}
 
+        {/* ── Drawing ── */}
         {type === 'drawing' && (
           <>
             <DrawingPanel canvasRef={canvasRef} />
@@ -518,16 +446,6 @@ const styles = StyleSheet.create({
   headerTitle: { fontSize: 16, fontWeight: '600' },
   postBtn:     { fontSize: 16, fontWeight: '700', color: '#000' },
   postBtnDim:  { color: '#ccc' },
-  typeRow:   { paddingHorizontal: 16, paddingVertical: 10, gap: 8, alignItems: 'center' },
-  typeChip: {
-    flexDirection: 'row', alignItems: 'center', gap: 5,
-    paddingHorizontal: 14, paddingVertical: 8, borderRadius: 20,
-    borderWidth: 1.5, borderColor: '#e8e8e8',
-  },
-  typeChipOn:   { backgroundColor: '#000', borderColor: '#000' },
-  typeIcon:     { fontSize: 13 },
-  typeLabel:    { fontSize: 13, fontWeight: '500', color: '#666' },
-  typeLabelOn:  { color: '#fff' },
   body: { padding: 20, gap: 14, paddingBottom: 80 },
   textInput: {
     fontSize: 18, color: '#000', minHeight: 220,
@@ -539,36 +457,20 @@ const styles = StyleSheet.create({
   },
   errorText: { color: '#e53e3e', fontSize: 14 },
 
-  // Shared media box
+  // Media
   mediaBox:  { width: '100%', aspectRatio: 1, borderRadius: 16, overflow: 'hidden', backgroundColor: '#f5f5f5' },
   mediaFill: { width: '100%', height: '100%' },
+  emptyMedia: { flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10 },
+  emptyIcon:  { fontSize: 48 },
+  emptyLabel: { fontSize: 15, color: '#aaa' },
   retakeBadge: {
     position: 'absolute', bottom: 10, right: 10,
     backgroundColor: 'rgba(0,0,0,0.55)', borderRadius: 10,
     paddingHorizontal: 10, paddingVertical: 5,
   },
   retakeBadgeText: { color: '#fff', fontSize: 13, fontWeight: '600' },
-  libraryLink: { alignItems: 'center', paddingVertical: 10 },
-  libraryLinkText: { fontSize: 14, color: '#888', textDecorationLine: 'underline' },
-  emptyMedia: {
-    flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10,
-    borderWidth: 2, borderColor: '#e8e8e8', borderStyle: 'dashed', borderRadius: 16,
-  },
-  emptyIcon:  { fontSize: 40 },
-  emptyLabel: { fontSize: 14, color: '#aaa' },
-
-  // Video picker (before selection)
-  videoPickerBox: {
-    width: '100%', aspectRatio: 1, borderRadius: 16,
-    borderWidth: 2, borderColor: '#e8e8e8', borderStyle: 'dashed',
-    flexDirection: 'row', overflow: 'hidden',
-  },
-  videoPickBtn: {
-    flex: 1, alignItems: 'center', justifyContent: 'center', gap: 10,
-  },
-  videoPickDivider: { width: 1, backgroundColor: '#e8e8e8', marginVertical: 40 },
-  videoPickIcon:  { fontSize: 36 },
-  videoPickLabel: { fontSize: 14, color: '#666', fontWeight: '500' },
+  retakeLink: { alignItems: 'center', paddingVertical: 10 },
+  retakeLinkText: { fontSize: 14, color: '#555', fontWeight: '500' },
 
   // Voice
   voicePanel:    { alignItems: 'center', gap: 20, paddingVertical: 28 },
