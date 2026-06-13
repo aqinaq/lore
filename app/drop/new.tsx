@@ -2,7 +2,7 @@ import { useRef, useState, useEffect } from 'react';
 import {
   View, Text, TextInput, TouchableOpacity, StyleSheet,
   ActivityIndicator, KeyboardAvoidingView, Platform, Image,
-  PanResponder, ScrollView, Dimensions,
+  PanResponder, ScrollView, Dimensions, Modal, Pressable,
 } from 'react-native';
 import * as ImagePicker from 'expo-image-picker';
 import {
@@ -110,32 +110,128 @@ function VoicePanel({
 
 // ─── Drawing panel ────────────────────────────────────────────────────────────
 
-const COLORS = [
-  // Neutrals
-  '#000000', '#434343', '#666666', '#999999', '#b7b7b7', '#cccccc', '#d9d9d9', '#ffffff',
-  // Reds & pinks
-  '#ff0000', '#e53e3e', '#c62828', '#ff6b6b', '#f06292', '#e91e8c', '#ff4081',
-  // Oranges & yellows
-  '#ff6d00', '#ff9800', '#ffc107', '#ffeb3b', '#f9a825',
-  // Greens
-  '#38a169', '#2e7d32', '#66bb6a', '#00c853', '#1de9b6', '#00bfa5',
-  // Blues & cyans
-  '#3182ce', '#1565c0', '#42a5f5', '#00b0ff', '#00e5ff', '#26c6da',
-  // Purples & magentas
-  '#805ad5', '#6a1b9a', '#ab47bc', '#ce93d8', '#ea80fc', '#d500f9',
-  // Browns
-  '#795548', '#a1887f', '#d7a17a',
+const PRESET_COLORS = [
+  '#000000', '#ffffff', '#e53e3e', '#ff9800',
+  '#ffeb3b', '#38a169', '#3182ce', '#805ad5', '#f06292',
 ];
 const BRUSHES = [3, 6, 12];
+
+// ─── Hex/RGB color picker modal ───────────────────────────────────────────────
+
+function clamp(v: number) { return Math.max(0, Math.min(255, Math.round(v))); }
+
+function rgbToHex(r: number, g: number, b: number) {
+  return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
+}
+
+function hexToRgb(hex: string): [number, number, number] | null {
+  const m = hex.replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
+  if (!m) return null;
+  return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+}
+
+function ColorPickerModal({ initial, onDone, onClose }: {
+  initial: string;
+  onDone: (hex: string) => void;
+  onClose: () => void;
+}) {
+  const rgb0 = hexToRgb(initial) ?? [0, 0, 0];
+  const [r, setR] = useState(rgb0[0]);
+  const [g, setG] = useState(rgb0[1]);
+  const [b, setB] = useState(rgb0[2]);
+  const [hex, setHex] = useState(initial.replace('#', ''));
+
+  const preview = rgbToHex(r, g, b);
+
+  function onHexChange(raw: string) {
+    const clean = raw.replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
+    setHex(clean);
+    if (clean.length === 6) {
+      const parsed = hexToRgb('#' + clean);
+      if (parsed) { setR(parsed[0]); setG(parsed[1]); setB(parsed[2]); }
+    }
+  }
+
+  function onChannelChange(ch: 'r' | 'g' | 'b', raw: string) {
+    const val = clamp(parseInt(raw) || 0);
+    if (ch === 'r') setR(val);
+    if (ch === 'g') setG(val);
+    if (ch === 'b') setB(val);
+    setHex(rgbToHex(
+      ch === 'r' ? val : r,
+      ch === 'g' ? val : g,
+      ch === 'b' ? val : b,
+    ).replace('#', ''));
+  }
+
+  return (
+    <Modal transparent animationType="fade" onRequestClose={onClose}>
+      <Pressable style={styles.cpOverlay} onPress={onClose}>
+        <Pressable style={styles.cpBox}>
+          <View style={[styles.cpPreview, { backgroundColor: preview }]} />
+
+          <View style={styles.cpHexRow}>
+            <Text style={styles.cpHexHash}>#</Text>
+            <TextInput
+              style={styles.cpHexInput}
+              value={hex}
+              onChangeText={onHexChange}
+              autoCapitalize="none"
+              autoCorrect={false}
+              maxLength={6}
+              placeholder="000000"
+              placeholderTextColor="#bbb"
+            />
+          </View>
+
+          {(['r','g','b'] as const).map((ch, i) => (
+            <View key={ch} style={styles.cpChannel}>
+              <Text style={[styles.cpChannelLabel, { color: ['#e53e3e','#38a169','#3182ce'][i] }]}>
+                {ch.toUpperCase()}
+              </Text>
+              <TextInput
+                style={styles.cpChannelInput}
+                value={String(ch === 'r' ? r : ch === 'g' ? g : b)}
+                onChangeText={v => onChannelChange(ch, v)}
+                keyboardType="number-pad"
+                maxLength={3}
+              />
+              <View style={styles.cpTrack}>
+                <View style={[styles.cpFill, {
+                  width: `${((ch === 'r' ? r : ch === 'g' ? g : b) / 255) * 100}%`,
+                  backgroundColor: ['#e53e3e','#38a169','#3182ce'][i],
+                } as any]} />
+              </View>
+            </View>
+          ))}
+
+          <View style={styles.cpActions}>
+            <TouchableOpacity onPress={onClose}>
+              <Text style={styles.cpCancel}>Cancel</Text>
+            </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.cpDone}
+              onPress={() => onDone(preview)}>
+              <Text style={styles.cpDoneText}>Done</Text>
+            </TouchableOpacity>
+          </View>
+        </Pressable>
+      </Pressable>
+    </Modal>
+  );
+}
+
+// ─── Drawing panel ────────────────────────────────────────────────────────────
 
 function DrawingPanel({ canvasRef }: { canvasRef: React.RefObject<View | null> }) {
   const [paths, setPaths] = useState<{ d: string; color: string; w: number }[]>([]);
   const colorRef = useRef('#000000');
   const brushRef = useRef(6);
   const liveD    = useRef('');
-  const [color, setColor] = useState('#000000');
-  const [brush, setBrush] = useState(6);
-  const [tick,  setTick]  = useState(0);
+  const [color,      setColor]      = useState('#000000');
+  const [brush,      setBrush]      = useState(6);
+  const [tick,       setTick]       = useState(0);
+  const [pickerOpen, setPickerOpen] = useState(false);
 
   function pickColor(c: string) { setColor(c); colorRef.current = c; }
   function pickBrush(b: number) { setBrush(b); brushRef.current = b; }
@@ -166,17 +262,26 @@ function DrawingPanel({ canvasRef }: { canvasRef: React.RefObject<View | null> }
   return (
     <View style={styles.drawPanel}>
       <View style={styles.drawToolbar}>
-        <ScrollView horizontal showsHorizontalScrollIndicator={false}>
-          <View style={styles.colorRow}>
-            {COLORS.map(c => (
-              <TouchableOpacity
-                key={c}
-                style={[styles.colorSwatch, { backgroundColor: c }, c === color && styles.colorActive]}
-                onPress={() => pickColor(c)}
-              />
-            ))}
-          </View>
-        </ScrollView>
+        <View style={styles.colorRow}>
+          {PRESET_COLORS.map(c => (
+            <TouchableOpacity
+              key={c}
+              style={[styles.colorSwatch, { backgroundColor: c }, c === color && styles.colorActive]}
+              onPress={() => pickColor(c)}
+            />
+          ))}
+          {/* Custom color picker button */}
+          <TouchableOpacity
+            style={[styles.colorSwatch, styles.colorPickerBtn,
+              !PRESET_COLORS.includes(color) && styles.colorActive]}
+            onPress={() => setPickerOpen(true)}>
+            {!PRESET_COLORS.includes(color)
+              ? <View style={[StyleSheet.absoluteFill, { backgroundColor: color, borderRadius: 13 }]} />
+              : null}
+            <Text style={styles.colorPickerIcon}>⊕</Text>
+          </TouchableOpacity>
+        </View>
+
         <View style={styles.brushRow}>
           {BRUSHES.map(b => (
             <TouchableOpacity
@@ -193,6 +298,7 @@ function DrawingPanel({ canvasRef }: { canvasRef: React.RefObject<View | null> }
           </TouchableOpacity>
         </View>
       </View>
+
       <View
         ref={canvasRef}
         style={styles.canvas}
@@ -209,6 +315,14 @@ function DrawingPanel({ canvasRef }: { canvasRef: React.RefObject<View | null> }
           )}
         </Svg>
       </View>
+
+      {pickerOpen && (
+        <ColorPickerModal
+          initial={color}
+          onDone={c => { pickColor(c); setPickerOpen(false); }}
+          onClose={() => setPickerOpen(false)}
+        />
+      )}
     </View>
   );
 }
@@ -509,12 +623,48 @@ const styles = StyleSheet.create({
   // Drawing
   drawPanel:   { gap: 10 },
   drawToolbar: { gap: 8 },
-  colorRow:    { flexDirection: 'row', gap: 8 },
+  colorRow:    { flexDirection: 'row', gap: 8, flexWrap: 'wrap', alignItems: 'center' },
   colorSwatch: {
-    width: 26, height: 26, borderRadius: 13,
+    width: 28, height: 28, borderRadius: 14,
     borderWidth: 1.5, borderColor: '#e8e8e8',
   },
-  colorActive:    { borderColor: '#333', borderWidth: 2.5, transform: [{ scale: 1.2 }] },
+  colorActive:    { borderColor: '#333', borderWidth: 2.5, transform: [{ scale: 1.18 }] },
+  colorPickerBtn: {
+    alignItems: 'center', justifyContent: 'center',
+    borderStyle: 'dashed', overflow: 'hidden',
+  },
+  colorPickerIcon: { fontSize: 16, color: '#888', lineHeight: 28 },
+
+  // Color picker modal
+  cpOverlay: {
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center', alignItems: 'center',
+  },
+  cpBox: {
+    backgroundColor: '#fff', borderRadius: 18,
+    padding: 20, width: 300, gap: 14,
+  },
+  cpPreview: { width: '100%', height: 60, borderRadius: 12 },
+  cpHexRow: {
+    flexDirection: 'row', alignItems: 'center', gap: 4,
+    borderWidth: 1.5, borderColor: '#e8e8e8', borderRadius: 10,
+    paddingHorizontal: 12, paddingVertical: 10,
+  },
+  cpHexHash:  { fontSize: 17, fontWeight: '600', color: '#555' },
+  cpHexInput: { flex: 1, fontSize: 17, fontWeight: '600', color: '#111', letterSpacing: 2 },
+  cpChannel:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
+  cpChannelLabel: { width: 18, fontSize: 13, fontWeight: '700' },
+  cpChannelInput: {
+    width: 44, fontSize: 14, fontWeight: '600', textAlign: 'center',
+    borderWidth: 1.5, borderColor: '#e8e8e8', borderRadius: 8,
+    paddingVertical: 4,
+  },
+  cpTrack: { flex: 1, height: 6, backgroundColor: '#f0f0f0', borderRadius: 3, overflow: 'hidden' },
+  cpFill:  { height: '100%', borderRadius: 3 },
+  cpActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 16, marginTop: 4 },
+  cpCancel:   { fontSize: 15, color: '#888', fontWeight: '500' },
+  cpDone:     { backgroundColor: '#000', borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 },
+  cpDoneText: { color: '#fff', fontWeight: '600', fontSize: 15 },
   brushRow:       { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brushBtn: {
     width: 38, height: 38, borderRadius: 8, borderWidth: 1.5, borderColor: '#e8e8e8',
