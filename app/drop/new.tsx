@@ -11,7 +11,7 @@ import {
 } from 'expo-audio';
 import { useVideoPlayer, VideoView } from 'expo-video';
 import { captureRef } from 'react-native-view-shot';
-import Svg, { Path } from 'react-native-svg';
+import Svg, { Path, Defs, LinearGradient as SvgGrad, Stop, Rect as SvgRect } from 'react-native-svg';
 import { router, useLocalSearchParams } from 'expo-router';
 import { supabase } from '@/lib/supabase';
 import { useAuth } from '@/lib/AuthContext';
@@ -110,15 +110,37 @@ function VoicePanel({
 
 // ─── Drawing panel ────────────────────────────────────────────────────────────
 
+const CP_SIZE = 260;
+const CP_BAR  = 22;
+
 const PRESET_COLORS = [
   '#000000', '#ffffff', '#e53e3e', '#ff9800',
   '#ffeb3b', '#38a169', '#3182ce', '#805ad5', '#f06292',
 ];
 const BRUSHES = [3, 6, 12];
 
-// ─── Hex/RGB color picker modal ───────────────────────────────────────────────
+// ─── Color math ───────────────────────────────────────────────────────────────
 
-function clamp(v: number) { return Math.max(0, Math.min(255, Math.round(v))); }
+function hsvToRgb(h: number, s: number, v: number): [number, number, number] {
+  const f = (n: number) => {
+    const k = (n + h / 60) % 6;
+    return v - v * s * Math.max(0, Math.min(k, 4 - k, 1));
+  };
+  return [Math.round(f(5) * 255), Math.round(f(3) * 255), Math.round(f(1) * 255)];
+}
+
+function rgbToHsv(r: number, g: number, b: number): [number, number, number] {
+  r /= 255; g /= 255; b /= 255;
+  const max = Math.max(r, g, b), d = max - Math.min(r, g, b);
+  let h = 0;
+  if (d) {
+    if (max === r) h = ((g - b) / d) % 6;
+    else if (max === g) h = (b - r) / d + 2;
+    else h = (r - g) / d + 4;
+    h = Math.round(h * 60); if (h < 0) h += 360;
+  }
+  return [h, max ? d / max : 0, max];
+}
 
 function rgbToHex(r: number, g: number, b: number) {
   return '#' + [r, g, b].map(v => v.toString(16).padStart(2, '0')).join('');
@@ -126,95 +148,191 @@ function rgbToHex(r: number, g: number, b: number) {
 
 function hexToRgb(hex: string): [number, number, number] | null {
   const m = hex.replace('#', '').match(/^([0-9a-f]{2})([0-9a-f]{2})([0-9a-f]{2})$/i);
-  if (!m) return null;
-  return [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)];
+  return m ? [parseInt(m[1], 16), parseInt(m[2], 16), parseInt(m[3], 16)] : null;
 }
+
+function toRgba(hex: string, a: number) {
+  const [r, g, b] = hexToRgb(hex) ?? [0, 0, 0];
+  return `rgba(${r},${g},${b},${a.toFixed(2)})`;
+}
+
+// ─── Full HSV color picker modal ──────────────────────────────────────────────
 
 function ColorPickerModal({ initial, onDone, onClose }: {
   initial: string;
-  onDone: (hex: string) => void;
+  onDone: (rgba: string) => void;
   onClose: () => void;
 }) {
-  const rgb0 = hexToRgb(initial) ?? [0, 0, 0];
-  const [r, setR] = useState(rgb0[0]);
-  const [g, setG] = useState(rgb0[1]);
-  const [b, setB] = useState(rgb0[2]);
-  const [hex, setHex] = useState(initial.replace('#', ''));
+  const initRgb = hexToRgb(initial.startsWith('rgba') ? '#000000' : initial) ?? [0, 0, 0];
+  const [ih, is, iv] = rgbToHsv(...initRgb);
 
-  const preview = rgbToHex(r, g, b);
+  const hRef  = useRef(ih);
+  const sRef  = useRef(is);
+  const vRef  = useRef(iv);
+  const aRef  = useRef(1);
+
+  const [hue,   setHue]   = useState(ih);
+  const [sat,   setSat]   = useState(is);
+  const [val,   setVal]   = useState(iv);
+  const [alpha, setAlpha] = useState(1);
+  const [hexIn, setHexIn] = useState(rgbToHex(...initRgb).replace('#', ''));
+
+  const hex     = rgbToHex(...hsvToRgb(hue, sat, val));
+  const hueHex  = rgbToHex(...hsvToRgb(hue, 1, 1));
+
+  function applyHsv(h: number, s: number, v: number) {
+    hRef.current = h; sRef.current = s; vRef.current = v;
+    setHue(h); setSat(s); setVal(v);
+    setHexIn(rgbToHex(...hsvToRgb(h, s, v)).replace('#', ''));
+  }
+
+  const svPan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder:  () => true,
+    onPanResponderGrant: e => {
+      const s = Math.max(0, Math.min(1, e.nativeEvent.locationX / CP_SIZE));
+      const v = Math.max(0, Math.min(1, 1 - e.nativeEvent.locationY / CP_SIZE));
+      applyHsv(hRef.current, s, v);
+    },
+    onPanResponderMove: e => {
+      const s = Math.max(0, Math.min(1, e.nativeEvent.locationX / CP_SIZE));
+      const v = Math.max(0, Math.min(1, 1 - e.nativeEvent.locationY / CP_SIZE));
+      applyHsv(hRef.current, s, v);
+    },
+  })).current;
+
+  const huePan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder:  () => true,
+    onPanResponderGrant: e => {
+      const h = Math.max(0, Math.min(360, (e.nativeEvent.locationX / CP_SIZE) * 360));
+      applyHsv(h, sRef.current, vRef.current);
+    },
+    onPanResponderMove: e => {
+      const h = Math.max(0, Math.min(360, (e.nativeEvent.locationX / CP_SIZE) * 360));
+      applyHsv(h, sRef.current, vRef.current);
+    },
+  })).current;
+
+  const alphaPan = useRef(PanResponder.create({
+    onStartShouldSetPanResponder: () => true,
+    onMoveShouldSetPanResponder:  () => true,
+    onPanResponderGrant: e => {
+      const a = Math.max(0, Math.min(1, e.nativeEvent.locationX / CP_SIZE));
+      aRef.current = a; setAlpha(a);
+    },
+    onPanResponderMove: e => {
+      const a = Math.max(0, Math.min(1, e.nativeEvent.locationX / CP_SIZE));
+      aRef.current = a; setAlpha(a);
+    },
+  })).current;
 
   function onHexChange(raw: string) {
     const clean = raw.replace(/[^0-9a-fA-F]/g, '').slice(0, 6);
-    setHex(clean);
+    setHexIn(clean);
     if (clean.length === 6) {
-      const parsed = hexToRgb('#' + clean);
-      if (parsed) { setR(parsed[0]); setG(parsed[1]); setB(parsed[2]); }
+      const rgb = hexToRgb('#' + clean);
+      if (rgb) {
+        const [h, s, v] = rgbToHsv(...rgb);
+        applyHsv(h, s, v);
+      }
     }
   }
 
-  function onChannelChange(ch: 'r' | 'g' | 'b', raw: string) {
-    const val = clamp(parseInt(raw) || 0);
-    if (ch === 'r') setR(val);
-    if (ch === 'g') setG(val);
-    if (ch === 'b') setB(val);
-    setHex(rgbToHex(
-      ch === 'r' ? val : r,
-      ch === 'g' ? val : g,
-      ch === 'b' ? val : b,
-    ).replace('#', ''));
-  }
+  const thumbSx = sat * CP_SIZE;
+  const thumbSy = (1 - val) * CP_SIZE;
+  const thumbHx = (hue / 360) * CP_SIZE;
+  const thumbAx = alpha * CP_SIZE;
 
   return (
-    <Modal transparent animationType="fade" onRequestClose={onClose}>
+    <Modal transparent animationType="slide" onRequestClose={onClose}>
       <Pressable style={styles.cpOverlay} onPress={onClose}>
         <Pressable style={styles.cpBox}>
-          <View style={[styles.cpPreview, { backgroundColor: preview }]} />
 
-          <View style={styles.cpHexRow}>
-            <Text style={styles.cpHexHash}>#</Text>
-            <TextInput
-              style={styles.cpHexInput}
-              value={hex}
-              onChangeText={onHexChange}
-              autoCapitalize="none"
-              autoCorrect={false}
-              maxLength={6}
-              placeholder="000000"
-              placeholderTextColor="#bbb"
-            />
+          {/* SV square */}
+          <View {...svPan.panHandlers} style={styles.cpSvWrap}>
+            <Svg width={CP_SIZE} height={CP_SIZE} style={StyleSheet.absoluteFill}>
+              <Defs>
+                <SvgGrad id="wh" x1="0" y1="0" x2="1" y2="0">
+                  <Stop offset="0" stopColor="#fff" />
+                  <Stop offset="1" stopColor={hueHex} />
+                </SvgGrad>
+                <SvgGrad id="bk" x1="0" y1="0" x2="0" y2="1">
+                  <Stop offset="0" stopColor="#000" stopOpacity="0" />
+                  <Stop offset="1" stopColor="#000" />
+                </SvgGrad>
+              </Defs>
+              <SvgRect width={CP_SIZE} height={CP_SIZE} fill="url(#wh)" />
+              <SvgRect width={CP_SIZE} height={CP_SIZE} fill="url(#bk)" />
+            </Svg>
+            <View style={[styles.cpCursor, { left: thumbSx - 11, top: thumbSy - 11 }]} />
           </View>
 
-          {(['r','g','b'] as const).map((ch, i) => (
-            <View key={ch} style={styles.cpChannel}>
-              <Text style={[styles.cpChannelLabel, { color: ['#e53e3e','#38a169','#3182ce'][i] }]}>
-                {ch.toUpperCase()}
-              </Text>
-              <TextInput
-                style={styles.cpChannelInput}
-                value={String(ch === 'r' ? r : ch === 'g' ? g : b)}
-                onChangeText={v => onChannelChange(ch, v)}
-                keyboardType="number-pad"
-                maxLength={3}
-              />
-              <View style={styles.cpTrack}>
-                <View style={[styles.cpFill, {
-                  width: `${((ch === 'r' ? r : ch === 'g' ? g : b) / 255) * 100}%`,
-                  backgroundColor: ['#e53e3e','#38a169','#3182ce'][i],
-                } as any]} />
-              </View>
+          {/* Hue bar */}
+          <View {...huePan.panHandlers} style={styles.cpBarWrap}>
+            <Svg width={CP_SIZE} height={CP_BAR} style={styles.cpBarSvg}>
+              <Defs>
+                <SvgGrad id="hue" x1="0" y1="0" x2="1" y2="0">
+                  {[0,60,120,180,240,300,360].map((deg, i) => (
+                    <Stop key={i} offset={`${(deg/360*100).toFixed(0)}%`}
+                      stopColor={rgbToHex(...hsvToRgb(deg === 360 ? 0 : deg, 1, 1))} />
+                  ))}
+                </SvgGrad>
+              </Defs>
+              <SvgRect width={CP_SIZE} height={CP_BAR} rx={CP_BAR / 2} fill="url(#hue)" />
+            </Svg>
+            <View style={[styles.cpBarThumb, { left: thumbHx - 13 }]} />
+          </View>
+
+          {/* Opacity bar */}
+          <View {...alphaPan.panHandlers} style={styles.cpBarWrap}>
+            <Svg width={CP_SIZE} height={CP_BAR} style={styles.cpBarSvg}>
+              <Defs>
+                <SvgGrad id="alpha" x1="0" y1="0" x2="1" y2="0">
+                  <Stop offset="0"   stopColor={hex} stopOpacity="0" />
+                  <Stop offset="1"   stopColor={hex} stopOpacity="1" />
+                </SvgGrad>
+              </Defs>
+              <SvgRect width={CP_SIZE} height={CP_BAR} rx={CP_BAR / 2} fill="#ccc" />
+              <SvgRect width={CP_SIZE} height={CP_BAR} rx={CP_BAR / 2} fill="url(#alpha)" />
+            </Svg>
+            <View style={[styles.cpBarThumb, { left: thumbAx - 13 }]} />
+          </View>
+
+          {/* Preview + hex input */}
+          <View style={styles.cpBottomRow}>
+            <View style={styles.cpPreviewWrap}>
+              <View style={styles.cpCheckers} />
+              <View style={[StyleSheet.absoluteFill, {
+                backgroundColor: hex, opacity: alpha, borderRadius: 10,
+              }]} />
             </View>
-          ))}
+            <View style={styles.cpHexRow}>
+              <Text style={styles.cpHash}>#</Text>
+              <TextInput
+                style={styles.cpHexInput}
+                value={hexIn}
+                onChangeText={onHexChange}
+                autoCapitalize="none"
+                autoCorrect={false}
+                maxLength={6}
+                placeholder="000000"
+                placeholderTextColor="#bbb"
+              />
+            </View>
+            <Text style={styles.cpAlphaPct}>{Math.round(alpha * 100)}%</Text>
+          </View>
 
           <View style={styles.cpActions}>
             <TouchableOpacity onPress={onClose}>
               <Text style={styles.cpCancel}>Cancel</Text>
             </TouchableOpacity>
-            <TouchableOpacity
-              style={styles.cpDone}
-              onPress={() => onDone(preview)}>
+            <TouchableOpacity style={styles.cpDone}
+              onPress={() => onDone(toRgba(hex, alpha))}>
               <Text style={styles.cpDoneText}>Done</Text>
             </TouchableOpacity>
           </View>
+
         </Pressable>
       </Pressable>
     </Modal>
@@ -637,33 +755,52 @@ const styles = StyleSheet.create({
 
   // Color picker modal
   cpOverlay: {
-    flex: 1, backgroundColor: 'rgba(0,0,0,0.45)',
-    justifyContent: 'center', alignItems: 'center',
+    flex: 1, backgroundColor: 'rgba(0,0,0,0.5)',
+    justifyContent: 'flex-end',
   },
   cpBox: {
-    backgroundColor: '#fff', borderRadius: 18,
-    padding: 20, width: 300, gap: 14,
+    backgroundColor: '#fff', borderTopLeftRadius: 24, borderTopRightRadius: 24,
+    padding: 20, paddingBottom: 36, gap: 16, alignItems: 'center',
   },
-  cpPreview: { width: '100%', height: 60, borderRadius: 12 },
+  cpSvWrap: {
+    width: CP_SIZE, height: CP_SIZE, borderRadius: 10, overflow: 'hidden',
+  },
+  cpCursor: {
+    position: 'absolute', width: 22, height: 22, borderRadius: 11,
+    borderWidth: 2.5, borderColor: '#fff',
+    shadowColor: '#000', shadowOpacity: 0.4, shadowRadius: 4, elevation: 4,
+  },
+  cpBarWrap: {
+    width: CP_SIZE, height: CP_BAR + 10,
+    justifyContent: 'center',
+  },
+  cpBarSvg: { borderRadius: CP_BAR / 2 },
+  cpBarThumb: {
+    position: 'absolute', width: 26, height: 26, borderRadius: 13,
+    backgroundColor: '#fff', top: -2,
+    shadowColor: '#000', shadowOpacity: 0.3, shadowRadius: 4, elevation: 4,
+    borderWidth: 1, borderColor: '#ddd',
+  },
+  cpBottomRow: { flexDirection: 'row', alignItems: 'center', gap: 10, width: CP_SIZE },
+  cpPreviewWrap: {
+    width: 48, height: 48, borderRadius: 10, overflow: 'hidden',
+    borderWidth: 1, borderColor: '#eee',
+  },
+  cpCheckers: { ...StyleSheet.absoluteFill, backgroundColor: '#ccc' },
   cpHexRow: {
-    flexDirection: 'row', alignItems: 'center', gap: 4,
+    flex: 1, flexDirection: 'row', alignItems: 'center',
     borderWidth: 1.5, borderColor: '#e8e8e8', borderRadius: 10,
-    paddingHorizontal: 12, paddingVertical: 10,
+    paddingHorizontal: 10, paddingVertical: 8,
   },
-  cpHexHash:  { fontSize: 17, fontWeight: '600', color: '#555' },
-  cpHexInput: { flex: 1, fontSize: 17, fontWeight: '600', color: '#111', letterSpacing: 2 },
-  cpChannel:  { flexDirection: 'row', alignItems: 'center', gap: 10 },
-  cpChannelLabel: { width: 18, fontSize: 13, fontWeight: '700' },
-  cpChannelInput: {
-    width: 44, fontSize: 14, fontWeight: '600', textAlign: 'center',
-    borderWidth: 1.5, borderColor: '#e8e8e8', borderRadius: 8,
-    paddingVertical: 4,
+  cpHash:     { fontSize: 15, fontWeight: '600', color: '#999' },
+  cpHexInput: { flex: 1, fontSize: 15, fontWeight: '600', color: '#111', letterSpacing: 1 },
+  cpAlphaPct: { fontSize: 13, color: '#888', width: 36, textAlign: 'right', fontWeight: '600' },
+  cpActions: {
+    flexDirection: 'row', justifyContent: 'flex-end',
+    alignItems: 'center', gap: 16, width: CP_SIZE,
   },
-  cpTrack: { flex: 1, height: 6, backgroundColor: '#f0f0f0', borderRadius: 3, overflow: 'hidden' },
-  cpFill:  { height: '100%', borderRadius: 3 },
-  cpActions: { flexDirection: 'row', justifyContent: 'flex-end', alignItems: 'center', gap: 16, marginTop: 4 },
   cpCancel:   { fontSize: 15, color: '#888', fontWeight: '500' },
-  cpDone:     { backgroundColor: '#000', borderRadius: 10, paddingHorizontal: 20, paddingVertical: 10 },
+  cpDone:     { backgroundColor: '#000', borderRadius: 10, paddingHorizontal: 22, paddingVertical: 10 },
   cpDoneText: { color: '#fff', fontWeight: '600', fontSize: 15 },
   brushRow:       { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brushBtn: {
