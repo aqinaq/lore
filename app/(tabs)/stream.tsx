@@ -28,6 +28,23 @@ type Reply = {
 
 const MAX_CARD = 390;
 
+// Radial FAB menu geometry
+const FAB_RIGHT  = 20;   // FAB right edge from screen right
+const FAB_BOTTOM = 28;   // FAB bottom edge from screen bottom
+const FAB_SIZE   = 56;
+const BUBBLE_SIZE = 54;
+const ARC_R      = 105;  // arc radius
+const FAB_CX = FAB_RIGHT  + FAB_SIZE / 2; // 48 — FAB center from right
+const FAB_CY = FAB_BOTTOM + FAB_SIZE / 2; // 56 — FAB center from bottom
+
+const DROP_FAB_ITEMS = [
+  { type: 'photo',   icon: '📷', label: 'Photo', deg: 100 },
+  { type: 'text',    icon: '✏️',  label: 'Note',  deg: 118 },
+  { type: 'drawing', icon: '🖌️', label: 'Draw',  deg: 135 },
+  { type: 'voice',   icon: '🎙️', label: 'Voice', deg: 153 },
+  { type: 'video',   icon: '🎬', label: 'Video', deg: 170 },
+] as const;
+
 // ─── Utilities ────────────────────────────────────────────────────────────────
 
 function timeAgo(iso: string) {
@@ -557,31 +574,26 @@ export default function StreamScreen() {
             <Pressable style={styles.fabOverlay} onPress={() => setFabOpen(false)} />
           )}
 
-          {/* Type picker bubbles */}
-          {fabOpen && (
-            <View style={styles.fabMenu}>
-              {([
-                { type: 'photo',   icon: '📷', label: 'Photo' },
-                { type: 'text',    icon: '✏️',  label: 'Note'  },
-                { type: 'video',   icon: '🎬', label: 'Video' },
-                { type: 'voice',   icon: '🎙️', label: 'Voice' },
-                { type: 'drawing', icon: '🖌️', label: 'Draw'  },
-              ] as const).map(({ type, icon, label }) => (
-                <TouchableOpacity
-                  key={type}
-                  style={styles.fabMenuItem}
-                  onPress={() => {
-                    setFabOpen(false);
-                    router.push({ pathname: '/drop/new', params: { circleId: activeCircle.id, type } });
-                  }}>
-                  <View style={styles.fabMenuCircle}>
-                    <Text style={styles.fabMenuIcon}>{icon}</Text>
-                  </View>
-                  <Text style={styles.fabMenuLabel}>{label}</Text>
-                </TouchableOpacity>
-              ))}
-            </View>
-          )}
+          {/* Radial arc bubbles */}
+          {fabOpen && DROP_FAB_ITEMS.map(({ type, icon, label, deg }) => {
+            const rad    = deg * Math.PI / 180;
+            const bRight  = FAB_CX - ARC_R * Math.cos(rad) - BUBBLE_SIZE / 2;
+            const bBottom = FAB_CY + ARC_R * Math.sin(rad) - BUBBLE_SIZE / 2;
+            return (
+              <TouchableOpacity
+                key={type}
+                style={[styles.arcBubble, { right: bRight, bottom: bBottom }]}
+                onPress={() => {
+                  setFabOpen(false);
+                  router.push({ pathname: '/drop/new', params: { circleId: activeCircle.id, type } });
+                }}>
+                <View style={styles.arcCircle}>
+                  <Text style={styles.arcIcon}>{icon}</Text>
+                </View>
+                <Text style={styles.arcLabel}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
 
           <TouchableOpacity
             style={[styles.fab, fabOpen && styles.fabClose]}
@@ -772,21 +784,16 @@ const styles = StyleSheet.create({
 
   // FAB
   fabOverlay: { ...StyleSheet.absoluteFill, zIndex: 9 },
-  fabMenu: {
-    position: 'absolute', bottom: 96, right: 20, left: 20,
-    flexDirection: 'row', justifyContent: 'flex-end', gap: 10,
-    zIndex: 10, alignItems: 'flex-end',
-  },
-  fabMenuItem: { alignItems: 'center', gap: 5 },
-  fabMenuCircle: {
-    width: 54, height: 54, borderRadius: 27,
+  arcBubble: { position: 'absolute', alignItems: 'center', zIndex: 10 },
+  arcCircle: {
+    width: BUBBLE_SIZE, height: BUBBLE_SIZE, borderRadius: BUBBLE_SIZE / 2,
     backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
-    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8,
-    shadowOffset: { width: 0, height: 2 }, elevation: 4,
+    shadowColor: '#000', shadowOpacity: 0.15, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }, elevation: 5,
     borderWidth: StyleSheet.hairlineWidth, borderColor: '#e0e0e0',
   },
-  fabMenuIcon:  { fontSize: 24 },
-  fabMenuLabel: { fontSize: 11, color: '#555', fontWeight: '500' },
+  arcIcon:  { fontSize: 24 },
+  arcLabel: { fontSize: 11, color: '#555', fontWeight: '600', marginTop: 4 },
   fab: {
     position: 'absolute', bottom: 28, right: 20,
     width: 56, height: 56, borderRadius: 28,
