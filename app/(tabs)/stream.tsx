@@ -254,40 +254,45 @@ function DropCard({ drop, myId }: { drop: Drop; myId: string }) {
 
   return (
     <Pressable
-      style={[styles.card, isDrawing && styles.cardDrawing]}
+      style={[styles.card, isDrawing && styles.cardDrawingCard]}
       onLongPress={(e) => {
         setPickerAnchorY(e.nativeEvent.pageY);
         setShowPicker(true);
       }}
       delayLongPress={400}>
 
-      {/* Drawing: full-bleed background image */}
-      {isDrawing && drop.content_url && (
-        <Image
-          source={{ uri: drop.content_url }}
-          style={StyleSheet.absoluteFill}
-          resizeMode="cover"
-        />
+      {/* Drawing: 1:1 image zone with author row overlaid inside */}
+      {isDrawing ? (
+        <View style={styles.drawingArea}>
+          {drop.content_url && (
+            <Image source={{ uri: drop.content_url }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+          )}
+          <View style={styles.authorRow}>
+            <InitialAvatar uri={drop.author?.avatar_url} name={name} />
+            <View style={styles.authorMeta}>
+              <Text style={styles.authorName}>{name}</Text>
+              <Text style={styles.authorTime}>{timeAgo(drop.created_at)}</Text>
+            </View>
+            {drop.is_pinned && <Text style={{ fontSize: 14 }}>📌</Text>}
+          </View>
+        </View>
+      ) : (
+        /* Author row for non-drawing types */
+        <View style={styles.authorRow}>
+          <InitialAvatar uri={drop.author?.avatar_url} name={name} />
+          <View style={styles.authorMeta}>
+            <Text style={styles.authorName}>{name}</Text>
+            <Text style={styles.authorTime}>{timeAgo(drop.created_at)}</Text>
+          </View>
+          {drop.is_pinned && <Text style={{ fontSize: 14 }}>📌</Text>}
+        </View>
       )}
 
-      {/* Author row */}
-      <View style={styles.authorRow}>
-        <InitialAvatar uri={drop.author?.avatar_url} name={name} />
-        <View style={styles.authorMeta}>
-          <Text style={styles.authorName}>{name}</Text>
-          <Text style={styles.authorTime}>{timeAgo(drop.created_at)}</Text>
-        </View>
-        {drop.is_pinned && <Text style={{ fontSize: 14 }}>📌</Text>}
-      </View>
-
-      {/* Content */}
+      {/* Content for non-drawing types */}
       {drop.type === 'text'  && <Text style={styles.textContent}>{drop.caption}</Text>}
       {drop.type === 'photo' && <PhotoContent drop={drop} />}
       {drop.type === 'video' && <VideoContent drop={drop} />}
       {drop.type === 'voice' && <VoiceContent drop={drop} />}
-
-      {/* Drawing: spacer fills the canvas area */}
-      {isDrawing && <View style={styles.drawingSpacer} />}
 
       {/* Caption under media */}
       {drop.type !== 'text' && drop.type !== 'drawing' && !!drop.caption && (
@@ -616,8 +621,8 @@ const styles = StyleSheet.create({
     shadowColor: '#000', shadowOpacity: 0.05, shadowRadius: 10,
     shadowOffset: { width: 0, height: 2 }, elevation: 2,
   },
-  cardDrawing: { width: '72%', aspectRatio: 1, alignSelf: 'flex-start' },
-  drawingSpacer: { flex: 1 },
+  cardDrawingCard: { width: '72%', alignSelf: 'flex-start' },
+  drawingArea: { width: '100%', aspectRatio: 1 },
   authorRow: {
     flexDirection: 'row', alignItems: 'center', gap: 10,
     paddingHorizontal: 14, paddingTop: 14, paddingBottom: 10,
