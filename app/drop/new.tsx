@@ -110,7 +110,22 @@ function VoicePanel({
 
 // ─── Drawing panel ────────────────────────────────────────────────────────────
 
-const COLORS  = ['#000000', '#e53e3e', '#3182ce', '#38a169', '#d69e2e', '#805ad5', '#ffffff'];
+const COLORS = [
+  // Neutrals
+  '#000000', '#434343', '#666666', '#999999', '#b7b7b7', '#cccccc', '#d9d9d9', '#ffffff',
+  // Reds & pinks
+  '#ff0000', '#e53e3e', '#c62828', '#ff6b6b', '#f06292', '#e91e8c', '#ff4081',
+  // Oranges & yellows
+  '#ff6d00', '#ff9800', '#ffc107', '#ffeb3b', '#f9a825',
+  // Greens
+  '#38a169', '#2e7d32', '#66bb6a', '#00c853', '#1de9b6', '#00bfa5',
+  // Blues & cyans
+  '#3182ce', '#1565c0', '#42a5f5', '#00b0ff', '#00e5ff', '#26c6da',
+  // Purples & magentas
+  '#805ad5', '#6a1b9a', '#ab47bc', '#ce93d8', '#ea80fc', '#d500f9',
+  // Browns
+  '#795548', '#a1887f', '#d7a17a',
+];
 const BRUSHES = [3, 6, 12];
 
 function DrawingPanel({ canvasRef }: { canvasRef: React.RefObject<View | null> }) {
@@ -496,10 +511,10 @@ const styles = StyleSheet.create({
   drawToolbar: { gap: 8 },
   colorRow:    { flexDirection: 'row', gap: 8 },
   colorSwatch: {
-    width: 30, height: 30, borderRadius: 15,
-    borderWidth: 2, borderColor: '#e8e8e8',
+    width: 26, height: 26, borderRadius: 13,
+    borderWidth: 1.5, borderColor: '#e8e8e8',
   },
-  colorActive:    { borderColor: '#000', borderWidth: 3, transform: [{ scale: 1.15 }] },
+  colorActive:    { borderColor: '#333', borderWidth: 2.5, transform: [{ scale: 1.2 }] },
   brushRow:       { flexDirection: 'row', alignItems: 'center', gap: 8 },
   brushBtn: {
     width: 38, height: 38, borderRadius: 8, borderWidth: 1.5, borderColor: '#e8e8e8',
