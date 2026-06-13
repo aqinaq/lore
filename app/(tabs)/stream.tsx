@@ -574,26 +574,39 @@ export default function StreamScreen() {
             <Pressable style={styles.fabOverlay} onPress={() => setFabOpen(false)} />
           )}
 
-          {/* Radial arc bubbles */}
-          {fabOpen && DROP_FAB_ITEMS.map(({ type, icon, label, deg }) => {
-            const rad    = deg * Math.PI / 180;
-            const bRight  = FAB_CX - ARC_R * Math.cos(rad) - BUBBLE_SIZE / 2;
-            const bBottom = FAB_CY + ARC_R * Math.sin(rad) - BUBBLE_SIZE / 2;
-            return (
-              <TouchableOpacity
-                key={type}
-                style={[styles.arcBubble, { right: bRight, bottom: bBottom }]}
-                onPress={() => {
-                  setFabOpen(false);
-                  router.push({ pathname: '/drop/new', params: { circleId: activeCircle.id, type } });
-                }}>
-                <View style={styles.arcCircle}>
-                  <Text style={styles.arcIcon}>{icon}</Text>
+          {/* 2-row grid above FAB */}
+          {fabOpen && (
+            <View style={styles.fabGrid}>
+              {([
+                [
+                  { type: 'photo',   icon: '📷', label: 'Photo' },
+                  { type: 'text',    icon: '✏️',  label: 'Note'  },
+                  { type: 'drawing', icon: '🖌️', label: 'Draw'  },
+                ],
+                [
+                  { type: 'voice',   icon: '🎙️', label: 'Voice' },
+                  { type: 'video',   icon: '🎬', label: 'Video' },
+                ],
+              ] as const).map((row, ri) => (
+                <View key={ri} style={styles.fabGridRow}>
+                  {row.map(({ type, icon, label }) => (
+                    <TouchableOpacity
+                      key={type}
+                      style={styles.arcBubble}
+                      onPress={() => {
+                        setFabOpen(false);
+                        router.push({ pathname: '/drop/new', params: { circleId: activeCircle.id, type } });
+                      }}>
+                      <View style={styles.arcCircle}>
+                        <Text style={styles.arcIcon}>{icon}</Text>
+                      </View>
+                      <Text style={styles.arcLabel}>{label}</Text>
+                    </TouchableOpacity>
+                  ))}
                 </View>
-                <Text style={styles.arcLabel}>{label}</Text>
-              </TouchableOpacity>
-            );
-          })}
+              ))}
+            </View>
+          )}
 
           <TouchableOpacity
             style={[styles.fab, fabOpen && styles.fabClose]}
@@ -784,7 +797,12 @@ const styles = StyleSheet.create({
 
   // FAB
   fabOverlay: { ...StyleSheet.absoluteFill, zIndex: 9 },
-  arcBubble: { position: 'absolute', alignItems: 'center', zIndex: 10 },
+  fabGrid: {
+    position: 'absolute', right: 14, bottom: 96,
+    zIndex: 10, gap: 12,
+  },
+  fabGridRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12 },
+  arcBubble: { alignItems: 'center' },
   arcCircle: {
     width: BUBBLE_SIZE, height: BUBBLE_SIZE, borderRadius: BUBBLE_SIZE / 2,
     backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
