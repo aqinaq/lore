@@ -286,10 +286,10 @@ function EmptyMediaHint({ icon, label }: { icon: string; label: string }) {
 // ─── Main screen ──────────────────────────────────────────────────────────────
 
 export default function NewDropScreen() {
-  const { circleId } = useLocalSearchParams<{ circleId: string }>();
+  const { circleId, type: typeParam } = useLocalSearchParams<{ circleId: string; type: string }>();
   const { session }  = useAuth();
 
-  const [type,     setType]     = useState<DropType>('text');
+  const [type,     setType]     = useState<DropType>((typeParam as DropType) || 'text');
   const [caption,  setCaption]  = useState('');
   const [photoUri, setPhotoUri] = useState<string | null>(null);
   const [videoUri, setVideoUri] = useState<string | null>(null);

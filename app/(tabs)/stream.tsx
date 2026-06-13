@@ -389,6 +389,7 @@ export default function StreamScreen() {
   const [loadingDrops,   setLoadingDrops]   = useState(false);
   const [refreshing,     setRefreshing]     = useState(false);
 
+  const [fabOpen,        setFabOpen]        = useState(false);
   const channelRef      = useRef<ReturnType<typeof supabase.channel> | null>(null);
   const activeCircleRef = useRef<Circle | null>(null);
 
@@ -550,11 +551,46 @@ export default function StreamScreen() {
       />
 
       {activeCircle && (
-        <TouchableOpacity
-          style={styles.fab}
-          onPress={() => router.push({ pathname: '/drop/new', params: { circleId: activeCircle.id } })}>
-          <Text style={styles.fabText}>+</Text>
-        </TouchableOpacity>
+        <>
+          {/* Tap-outside overlay */}
+          {fabOpen && (
+            <Pressable style={styles.fabOverlay} onPress={() => setFabOpen(false)} />
+          )}
+
+          {/* Type picker bubbles */}
+          {fabOpen && (
+            <View style={styles.fabMenu}>
+              {([
+                { type: 'photo',   icon: '📷', label: 'Photo' },
+                { type: 'text',    icon: '✏️',  label: 'Note'  },
+                { type: 'video',   icon: '🎬', label: 'Video' },
+                { type: 'voice',   icon: '🎙️', label: 'Voice' },
+                { type: 'drawing', icon: '🖌️', label: 'Draw'  },
+              ] as const).map(({ type, icon, label }) => (
+                <TouchableOpacity
+                  key={type}
+                  style={styles.fabMenuItem}
+                  onPress={() => {
+                    setFabOpen(false);
+                    router.push({ pathname: '/drop/new', params: { circleId: activeCircle.id, type } });
+                  }}>
+                  <View style={styles.fabMenuCircle}>
+                    <Text style={styles.fabMenuIcon}>{icon}</Text>
+                  </View>
+                  <Text style={styles.fabMenuLabel}>{label}</Text>
+                </TouchableOpacity>
+              ))}
+            </View>
+          )}
+
+          <TouchableOpacity
+            style={[styles.fab, fabOpen && styles.fabClose]}
+            onPress={() => setFabOpen(o => !o)}>
+            <Text style={[styles.fabText, fabOpen && styles.fabCloseText]}>
+              {fabOpen ? '×' : '+'}
+            </Text>
+          </TouchableOpacity>
+        </>
       )}
     </SafeAreaView>
   );
@@ -735,11 +771,30 @@ const styles = StyleSheet.create({
   replySendText:   { color: '#fff', fontSize: 16, fontWeight: '700' },
 
   // FAB
+  fabOverlay: { ...StyleSheet.absoluteFill, zIndex: 9 },
+  fabMenu: {
+    position: 'absolute', bottom: 96, right: 20, left: 20,
+    flexDirection: 'row', justifyContent: 'flex-end', gap: 10,
+    zIndex: 10, alignItems: 'flex-end',
+  },
+  fabMenuItem: { alignItems: 'center', gap: 5 },
+  fabMenuCircle: {
+    width: 54, height: 54, borderRadius: 27,
+    backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
+    shadowColor: '#000', shadowOpacity: 0.12, shadowRadius: 8,
+    shadowOffset: { width: 0, height: 2 }, elevation: 4,
+    borderWidth: StyleSheet.hairlineWidth, borderColor: '#e0e0e0',
+  },
+  fabMenuIcon:  { fontSize: 24 },
+  fabMenuLabel: { fontSize: 11, color: '#555', fontWeight: '500' },
   fab: {
     position: 'absolute', bottom: 28, right: 20,
     width: 56, height: 56, borderRadius: 28,
     backgroundColor: '#000', alignItems: 'center', justifyContent: 'center',
     shadowColor: '#000', shadowOpacity: 0.25, shadowRadius: 10, elevation: 6,
+    zIndex: 11,
   },
-  fabText: { color: '#fff', fontSize: 30, lineHeight: 34 },
+  fabClose:     { backgroundColor: '#555' },
+  fabText:      { color: '#fff', fontSize: 30, lineHeight: 34 },
+  fabCloseText: { fontSize: 36, lineHeight: 40 },
 });
