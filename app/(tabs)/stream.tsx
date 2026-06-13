@@ -29,20 +29,21 @@ type Reply = {
 const MAX_CARD = 390;
 
 // Radial FAB menu geometry
-const FAB_RIGHT  = 20;   // FAB right edge from screen right
-const FAB_BOTTOM = 28;   // FAB bottom edge from screen bottom
+const FAB_RIGHT  = 20;
+const FAB_BOTTOM = 28;
 const FAB_SIZE   = 56;
 const BUBBLE_SIZE = 54;
-const ARC_R      = 105;  // arc radius
-const FAB_CX = FAB_RIGHT  + FAB_SIZE / 2; // 48 — FAB center from right
-const FAB_CY = FAB_BOTTOM + FAB_SIZE / 2; // 56 — FAB center from bottom
+const ARC_R      = 180; // large radius → comfortable gap between bubbles
+const FAB_CX = FAB_RIGHT  + FAB_SIZE / 2; // 48
+const FAB_CY = FAB_BOTTOM + FAB_SIZE / 2; // 56
 
+// Quarter-circle arc from 90° (straight up) to 180° (straight left), step 22.5°
 const DROP_FAB_ITEMS = [
-  { type: 'photo',   icon: '📷', label: 'Photo', deg: 100 },
-  { type: 'text',    icon: '✏️',  label: 'Note',  deg: 118 },
+  { type: 'photo',   icon: '📷', label: 'Photo', deg: 90  },
+  { type: 'text',    icon: '✏️',  label: 'Note',  deg: 112 },
   { type: 'drawing', icon: '🖌️', label: 'Draw',  deg: 135 },
-  { type: 'voice',   icon: '🎙️', label: 'Voice', deg: 153 },
-  { type: 'video',   icon: '🎬', label: 'Video', deg: 170 },
+  { type: 'voice',   icon: '🎙️', label: 'Voice', deg: 158 },
+  { type: 'video',   icon: '🎬', label: 'Video', deg: 180 },
 ] as const;
 
 // ─── Utilities ────────────────────────────────────────────────────────────────
@@ -574,39 +575,26 @@ export default function StreamScreen() {
             <Pressable style={styles.fabOverlay} onPress={() => setFabOpen(false)} />
           )}
 
-          {/* 2-row grid above FAB */}
-          {fabOpen && (
-            <View style={styles.fabGrid}>
-              {([
-                [
-                  { type: 'photo',   icon: '📷', label: 'Photo' },
-                  { type: 'text',    icon: '✏️',  label: 'Note'  },
-                  { type: 'drawing', icon: '🖌️', label: 'Draw'  },
-                ],
-                [
-                  { type: 'voice',   icon: '🎙️', label: 'Voice' },
-                  { type: 'video',   icon: '🎬', label: 'Video' },
-                ],
-              ] as const).map((row, ri) => (
-                <View key={ri} style={styles.fabGridRow}>
-                  {row.map(({ type, icon, label }) => (
-                    <TouchableOpacity
-                      key={type}
-                      style={styles.arcBubble}
-                      onPress={() => {
-                        setFabOpen(false);
-                        router.push({ pathname: '/drop/new', params: { circleId: activeCircle.id, type } });
-                      }}>
-                      <View style={styles.arcCircle}>
-                        <Text style={styles.arcIcon}>{icon}</Text>
-                      </View>
-                      <Text style={styles.arcLabel}>{label}</Text>
-                    </TouchableOpacity>
-                  ))}
+          {/* Arc bubbles — quarter-circle from top to left */}
+          {fabOpen && DROP_FAB_ITEMS.map(({ type, icon, label, deg }) => {
+            const rad     = deg * Math.PI / 180;
+            const bRight  = FAB_CX - ARC_R * Math.cos(rad) - BUBBLE_SIZE / 2;
+            const bBottom = FAB_CY + ARC_R * Math.sin(rad) - BUBBLE_SIZE / 2;
+            return (
+              <TouchableOpacity
+                key={type}
+                style={[styles.arcBubble, { right: bRight, bottom: bBottom }]}
+                onPress={() => {
+                  setFabOpen(false);
+                  router.push({ pathname: '/drop/new', params: { circleId: activeCircle.id, type } });
+                }}>
+                <View style={styles.arcCircle}>
+                  <Text style={styles.arcIcon}>{icon}</Text>
                 </View>
-              ))}
-            </View>
-          )}
+                <Text style={styles.arcLabel}>{label}</Text>
+              </TouchableOpacity>
+            );
+          })}
 
           <TouchableOpacity
             style={[styles.fab, fabOpen && styles.fabClose]}
@@ -797,12 +785,7 @@ const styles = StyleSheet.create({
 
   // FAB
   fabOverlay: { ...StyleSheet.absoluteFill, zIndex: 9 },
-  fabGrid: {
-    position: 'absolute', right: 14, bottom: 96,
-    zIndex: 10, gap: 12,
-  },
-  fabGridRow: { flexDirection: 'row', justifyContent: 'flex-end', gap: 12 },
-  arcBubble: { alignItems: 'center' },
+  arcBubble: { position: 'absolute', alignItems: 'center', zIndex: 10 },
   arcCircle: {
     width: BUBBLE_SIZE, height: BUBBLE_SIZE, borderRadius: BUBBLE_SIZE / 2,
     backgroundColor: '#fff', alignItems: 'center', justifyContent: 'center',
